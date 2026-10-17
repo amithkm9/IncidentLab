@@ -15,12 +15,15 @@ Updated: 2026-10-17. Version: 0.2.0.
   episode, revision, and state-fingerprint checks, followed by fresh verification.
 - Indexed SQLite history, atomic record/event transactions, persistent audit
   timelines, legacy JSON import, and JSON/Markdown incident report exports.
-- Responsive recovery workbench with diagnosis, rehearsal, evidence, and history.
+- Responsive recovery workbench with a guided offline demo, searchable evidence
+  and history, outcome filters, linked archived experiments, and mobile plan cards.
+- Visual README with actual desktop/mobile screenshots and architecture, workflow,
+  and benchmark diagrams; detailed technical reference in `docs/ARCHITECTURE.md`.
 - Two reproducible benchmark runners, Docker Compose, and CI artifact generation.
 
 ## Verification
 
-- Final integrated Docker suite: **90 passed**, 24.82 seconds. Covers real
+- Final integrated Docker suite: **90 passed**, 24.90 seconds. Covers real
   HTTP/SQLite errors and recovery, clone isolation and cleanup, partial repairs,
   stale/drifted plans, restart safety, persistence, and evaluator accounting.
 - Rehearsal test split: **30 episodes, zero execution errors**. On 24 actionable
@@ -35,13 +38,16 @@ Updated: 2026-10-17. Version: 0.2.0.
   75/75 recoveries, and 30/30 control no-action decisions. Those results cover
   the original known single-fault families; see [docs/BASELINE_RESULTS.md](docs/BASELINE_RESULTS.md).
 
-Chrome desktop walkthrough verified compound-fault injection, investigation,
-citation-to-log navigation, all 15 rehearsal outcomes, two-action promotion with
-five fresh HTTP 200 responses, persistent history, and disabled archive actions.
-JavaScript syntax, Python compilation, and Git whitespace checks passed. Final
-copy/typography refinements were reviewed in code; a separate mobile viewport
-visual check remains outstanding. Responsive layouts and keyboard tab navigation
-are implemented.
+Chrome and Safari desktop walkthroughs verified compound-fault investigation,
+citation-to-log navigation, evidence search and empty states, all 15 rehearsal
+outcomes plus the control, the passing-plan filter, two-action promotion with
+five fresh HTTP 200 responses, history search, and read-only archive inspection.
+Chrome's 390-pixel responsive viewport was visually checked for stacked forms,
+readable findings, full-width actions, and experiment comparison cards. This is
+browser viewport testing, not a physical-device test. Safari select-field sizing
+was corrected and checked. Actual app screenshots and rendered SVG diagrams
+were inspected for the README. JavaScript syntax, static HTML/ARIA references,
+local documentation links, and Git whitespace checks passed.
 
 The upgraded Docker app is healthy at `http://127.0.0.1:8000`; the runtime volume
 preserves history. Use `docker compose stop app` to stop it.

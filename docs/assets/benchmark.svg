@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="570" viewBox="0 0 1000 570" role="img" aria-labelledby="title desc">
+  <title id="title">Offline recovery comparison: 62.5 percent baseline versus 100 percent fix rehearsal</title>
+  <desc id="desc">Across twenty-four controlled fault cases, a one-shot rule-based baseline recovered fifteen, or 62.5 percent. Fix rehearsal recovered twenty-four, or 100 percent, an improvement of 37.5 percentage points. Rehearsal recovered all nine compound cases and preserved all six no-action controls. The comparison uses thirty cases across ten known scenarios and three seeds, and rehearsal has a larger experiment budget. This is not live AI or production performance.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; fill: #172b25; }
+    .title { font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+    .body { font-size: 18px; }
+    .note { font-size: 16px; fill: #52685e; }
+    .value { font-size: 35px; font-weight: 700; letter-spacing: -1px; fill: #103e32; }
+  </style>
+  <rect width="1000" height="570" rx="24" fill="#f7faf7"/>
+  <text class="title" x="32" y="53">More complete recovery, measured in the lab.</text>
+  <text class="body" x="32" y="84">Verified checkout recovery across 24 controlled fault cases · recorded October 17, 2026</text>
+
+  <text class="body" x="32" y="150" font-weight="650">One-shot baseline</text>
+  <text class="note" x="32" y="178">One proposed action</text>
+  <rect x="288" y="133" width="640" height="58" rx="9" fill="#e6ece7"/>
+  <rect x="288" y="133" width="400" height="58" rx="9" fill="#9ab4a4"/>
+  <text x="308" y="171" font-size="26" font-weight="700">62.5%</text>
+  <text class="body" x="928" y="218" text-anchor="end">15 / 24 recovered</text>
+
+  <text class="body" x="32" y="270" font-weight="650">Fix rehearsal</text>
+  <text class="note" x="32" y="298">Up to 15 candidate plans</text>
+  <rect x="288" y="253" width="640" height="58" rx="9" fill="#103e32"/>
+  <text x="308" y="291" font-size="26" font-weight="700" style="fill:#fff">100%</text>
+  <text class="body" x="928" y="338" text-anchor="end">24 / 24 recovered</text>
+
+  <rect x="32" y="373" width="296" height="111" rx="14" fill="#e8f4ed"/>
+  <text class="value" x="54" y="418">+37.5 pp</text>
+  <text class="note" x="54" y="454">Verified recovery improvement</text>
+  <rect x="352" y="373" width="296" height="111" rx="14" fill="#e8f4ed"/>
+  <text class="value" x="374" y="418">9 / 9</text>
+  <text class="note" x="374" y="454">Compound failures recovered</text>
+  <rect x="672" y="373" width="296" height="111" rx="14" fill="#e8f4ed"/>
+  <text class="value" x="694" y="418">6 / 6</text>
+  <text class="note" x="694" y="454">No-action controls preserved</text>
+  <text class="note" x="32" y="523">30 offline cases · 10 known scenarios × 3 seeds · a larger experiment budget for rehearsal</text>
+  <text class="note" x="32" y="548">Recovery requires five fresh HTTP 200 responses. This is not live model or production performance.</text>
+</svg>
