@@ -87,3 +87,13 @@ class RemediateRequest(StrictModel):
 class ProbeRequest(StrictModel):
     count: int = Field(default=5, ge=1, le=20)
 
+
+class RehearseRequest(StrictModel):
+    max_actions: int = Field(default=2, ge=1, le=2)
+    probe_count: int = Field(default=3, ge=1, le=10)
+
+
+class PromoteRequest(StrictModel):
+    rehearsal_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    plan_id: str = Field(min_length=1, max_length=64)
+

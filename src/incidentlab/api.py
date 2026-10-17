@@ -5,12 +5,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from .lab import SCENARIOS, SCENARIO_BY_ID
-from .models import InjectRequest, InvestigateRequest, ProbeRequest, RemediateRequest
+from .models import InjectRequest, InvestigateRequest, ProbeRequest, PromoteRequest, RehearseRequest, RemediateRequest
 from .service import ConflictError, IncidentService
 
 
@@ -24,7 +24,7 @@ def create_app(directory: Path | None = None) -> FastAPI:
         finally:
             service.close()
 
-    app = FastAPI(title="IncidentLab", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="IncidentLab", version="0.2.0", lifespan=lifespan)
     static = Path(__file__).parent / "static"
 
     @app.middleware("http")
@@ -55,16 +55,25 @@ def create_app(directory: Path | None = None) -> FastAPI:
     def config():
         return {"mistral_configured": bool(os.environ.get("MISTRAL_API_KEY", "").strip()),
                 "model": os.environ.get("MISTRAL_MODEL", "mistral-small-latest"),
-                "scope": "Disposable local lab", "version": "0.1.0"}
+                "scope": "Disposable local lab", "version": "0.2.0"}
 
     @app.get("/api/scenarios")
     def scenarios():
         # Labels are visible to the operator, never passed to the investigator.
-        return [{"id": s.id, "name": s.name, "description": s.description} for s in SCENARIOS]
+        return [{"id": s.id, "name": s.name, "description": s.description,
+                 "fault_count": s.fault_count} for s in SCENARIOS]
 
     @app.get("/api/status")
     def status(request: Request):
         return request.app.state.service.status()
+
+    @app.get("/api/workspace")
+    def workspace(request: Request):
+        return request.app.state.service.workspace()
+
+    @app.get("/api/history")
+    def history(request: Request, limit: int = Query(default=50, ge=1, le=100)):
+        return request.app.state.service.history(limit)
 
     @app.post("/api/inject")
     def inject(body: InjectRequest, request: Request):
@@ -90,6 +99,31 @@ def create_app(directory: Path | None = None) -> FastAPI:
     @app.post("/api/remediate")
     def remediate(body: RemediateRequest, request: Request):
         return request.app.state.service.remediate(body.investigation_id, body.action)
+
+    @app.post("/api/rehearse")
+    def rehearse(body: RehearseRequest, request: Request):
+        return request.app.state.service.rehearse(body.max_actions, body.probe_count)
+
+    @app.post("/api/promote")
+    def promote(body: PromoteRequest, request: Request):
+        return request.app.state.service.promote(body.rehearsal_id, body.plan_id)
+
+    @app.get("/api/rehearsals/{rehearsal_id}")
+    def rehearsal_artifact(rehearsal_id: str, request: Request):
+        try:
+            record = request.app.state.service.read_rehearsal(rehearsal_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, "Rehearsal not found") from exc
+        return JSONResponse(record, headers={"Content-Disposition": f'attachment; filename="incidentlab-rehearsal-{rehearsal_id}.json"'})
+
+    @app.get("/api/postmortems/{investigation_id}")
+    def postmortem(investigation_id: str, request: Request):
+        try:
+            content = request.app.state.service.postmortem(investigation_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(404, "Investigation not found") from exc
+        return PlainTextResponse(content, media_type="text/markdown", headers={
+            "Content-Disposition": f'attachment; filename="incidentlab-{investigation_id}.md"'})
 
     @app.get("/api/investigations/{investigation_id}")
     def artifact(investigation_id: str, request: Request):

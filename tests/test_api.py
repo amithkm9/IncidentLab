@@ -16,7 +16,9 @@ def test_complete_workflow_and_export(client):
     assert client.get("/").status_code == 200
     assert client.get("/static/app.js").status_code == 200
     assert client.get("/healthz").json() == {"status": "ok"}
-    assert len(client.get("/api/scenarios").json()) == 7
+    scenarios = client.get("/api/scenarios").json()
+    assert len(scenarios) == 10
+    assert sum(s["fault_count"] == 2 for s in scenarios) == 3
     record = find(client)
     assert record["result"]["finding"]["cause"] == "configuration_error"
     response = client.post("/api/remediate", json={"investigation_id": record["id"], "action": "restore_inventory_route"})
