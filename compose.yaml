@@ -1,0 +1,37 @@
+services:
+  app:
+    build:
+      context: .
+      target: base
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
+      MISTRAL_INPUT_USD_PER_MILLION: ${MISTRAL_INPUT_USD_PER_MILLION:-}
+      MISTRAL_OUTPUT_USD_PER_MILLION: ${MISTRAL_OUTPUT_USD_PER_MILLION:-}
+    volumes:
+      - lab-runtime:/app/runtime
+  test:
+    build:
+      context: .
+      target: test
+    profiles: ["test"]
+    environment:
+      MISTRAL_API_KEY: ""
+  eval:
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    build:
+      context: .
+      target: base
+    profiles: ["eval"]
+    environment:
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-mistral-small-latest}
+      MISTRAL_INPUT_USD_PER_MILLION: ${MISTRAL_INPUT_USD_PER_MILLION:-}
+      MISTRAL_OUTPUT_USD_PER_MILLION: ${MISTRAL_OUTPUT_USD_PER_MILLION:-}
+    volumes:
+      - ./artifacts:/app/artifacts
+    command: ["incidentlab-eval", "--mode", "baseline", "--split", "smoke"]
+volumes:
+  lab-runtime:
