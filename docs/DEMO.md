@@ -1,26 +1,32 @@
-# Three-minute demo
+# IncidentLab demo: a fix that reveals another failure
 
-Start the app and open `http://127.0.0.1:8000`. Use the offline baseline unless a
-Mistral key is configured. Always identify which mode is being demonstrated.
+Run `docker compose up --build -d app` and open <http://127.0.0.1:8000>.
+Use the offline baseline; this walkthrough makes no model API calls.
 
-**0:00–0:30 — Introduce the failure.** Select Configuration drift and inject it.
-Show the four failed checkout requests. Inventory and checkout are real local
-HTTP servers; the fault changes the inventory URL path.
+1. Select **Route drift masks a pricing regression**, seed 42, and start it.
+   Checkout fails because it calls an inventory route that does not exist.
+2. Run the investigation. Open a citation and inspect the actual HTTP 404
+   observation. The proposed route repair is supported, but is only one action.
+3. Optional demonstration: apply that single fix. Checkout now reaches pricing
+   and returns HTTP 500. The initial diagnosis did not establish full recovery.
+   Re-inject the compound scenario to compare the complete original state.
+4. Open **Fix rehearsal** and run the two-action comparison. The active lab does
+   not change. Each of 15 plans and the no-change control gets separate local
+   HTTP services and a SQLite database copied from the current state.
+5. Inspect control, route-only, rollback-only, and the combined plan. Only the
+   combined route repair plus pricing rollback restores this incident. Selection
+   uses measured responses and plan size, not the scenario's expected answer.
+6. Promote the recommended plan. Five new requests run against the active lab.
+   The result must explicitly say recovery verified; rehearsal success alone is
+   not counted as active-lab recovery.
+7. Export the experiment JSON and incident report. Open history, reload the
+   workspace, and inspect the persistent evidence and timeline.
 
-**0:30–1:30 — Investigate.** Run an investigation. Open Application logs and
-Deployment changes. Explain the distinction between checkout's HTTP 502 and its
-dependency's HTTP 404. Click the finding's supporting citation. Open the runbook
-to distinguish troubleshooting guidance from live incident evidence.
+Follow with healthy and missing-evidence controls. Both should produce no
+recommended change. Restarting the app preserves history but creates a new lab
+episode; old plans remain read-only.
 
-**1:30–2:15 — Apply and verify.** Click Apply fix & verify. The lab restores the
-known-good route. Show five fresh HTTP 200s and the new observation window.
-Investigate again: the result should now be healthy with no proposed action.
-
-**2:15–2:45 — Demonstrate abstention.** Inject Missing evidence, then investigate.
-The correct finding is insufficient evidence with no executable action. The
-operator can see failed requests, but the investigator lacks diagnostics.
-
-**2:45–3:00 — Show the engineering record.** Export JSON and point to the tool
-arguments, observations, provenance, latency, and limitations. Explain that the
-offline suite proves this implementation's known-case behavior, not model
-accuracy or production readiness.
+The portfolio result is expanded recovery capability on known compound faults,
+with isolation, provenance, and guarded promotion. It is not a claim that an LLM
+invented a fix, that the experiment budget is equal to the one-shot comparator,
+or that the result transfers to production infrastructure.

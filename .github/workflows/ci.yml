@@ -9,7 +9,9 @@ jobs:
         run: docker compose --profile test run --build --rm test
       - name: Run baseline smoke evaluation
         run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile eval run --build --rm eval
+      - name: Compare single fixes with isolated rehearsal
+        run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile eval run --rm eval incidentlab-rehearsal-eval --split smoke
       - uses: actions/upload-artifact@v4
         with:
-          name: baseline-smoke
-          path: artifacts/baseline-smoke.json
+          name: incidentlab-evaluations
+          path: artifacts/*-smoke.json

@@ -2,8 +2,9 @@ FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 INCIDENTLAB_DATA_DIR=/app/runtime
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
+RUN pip install --no-cache-dir uv==0.9.5 && uv sync --frozen --no-dev --no-install-project
 COPY src ./src
-RUN pip install --no-cache-dir uv==0.9.5 && uv sync --frozen --no-dev --no-editable
+RUN uv sync --frozen --no-dev --no-editable
 ENV PATH="/app/.venv/bin:$PATH"
 RUN useradd --create-home lab && mkdir -p /app/runtime /app/artifacts && chown -R lab:lab /app
 USER lab

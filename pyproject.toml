@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "incidentlab"
-version = "0.1.0"
+version = "0.2.0"
 description = "Evidence-grounded incident investigation with a reproducible failure lab."
 requires-python = ">=3.11"
 dependencies = [
@@ -20,6 +20,7 @@ dev = ["pytest>=8.3,<10"]
 [project.scripts]
 incidentlab = "incidentlab.cli:main"
 incidentlab-eval = "incidentlab.evaluate:main"
+incidentlab-rehearsal-eval = "incidentlab.evaluate_rehearsal:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/incidentlab"]

@@ -1,53 +1,66 @@
 # IncidentLab status
 
-Updated: 2026-10-17.
+Updated: 2026-10-17. Version: 0.2.0.
 
 ## Implemented
 
-- Disposable checkout and inventory HTTP services with a SQLite catalog.
-- Five fault families plus healthy and unavailable-telemetry controls.
-- Deterministic offline investigator; BM25 runbook search.
-- Mistral prompt-only, retrieval-only, and bounded tool-calling modes.
-- FastAPI orchestration, serialized operations, stale-finding remediation checks.
-- Browser workflow with metrics, citations, tool traces, recovery, and JSON export.
-- CLI, Docker Compose, frozen evaluation manifest, and automated tests.
+- Checkout and inventory HTTP services with a real SQLite catalog.
+- Five single-fault families, three masked compound faults, healthy and
+  missing-telemetry controls: ten reproducible scenarios in total.
+- Read-only offline and bounded Mistral investigators with citations and BM25
+  runbooks. The model does not receive injected scenario labels.
+- Actual-state snapshots, SQLite backup-based copying, independent clone ports,
+  and isolated control/one-action/two-action experiments.
+- Minimal passing plan selection from measured traffic; explicit promotion with
+  episode, revision, and state-fingerprint checks, followed by fresh verification.
+- Indexed SQLite history, atomic record/event transactions, persistent audit
+  timelines, legacy JSON import, and JSON/Markdown incident report exports.
+- Responsive recovery workbench with diagnosis, rehearsal, evidence, and history.
+- Two reproducible benchmark runners, Docker Compose, and CI artifact generation.
 
 ## Verification
 
-- `docker compose --profile test run --rm test`: **39 passed**, 5.88 seconds.
-  Includes real HTTP/SQLite fault and recovery checks, API lifecycle and stale
-  action rejection, and mocked Mistral tool-calling and failure paths.
-- `docker compose --profile eval run --rm eval incidentlab-eval --mode baseline
-  --split test`: **105/105** correct causes and actions, **75/75** verified
-  recoveries, **30/30** control no-action decisions, no episode errors.
-- JavaScript syntax and Python compile checks passed.
-- Chrome desktop walkthrough verified injection, investigation, citation-to-log
-  navigation, and five successful recovery requests. Responsive CSS is included;
-  a narrow/mobile viewport has not yet been visually verified.
-- The Docker app is running at `http://127.0.0.1:8000` and its health check passes.
-  Stop it with `docker compose stop app` when finished.
+- Final integrated Docker suite: **90 passed**, 24.82 seconds. Covers real
+  HTTP/SQLite errors and recovery, clone isolation and cleanup, partial repairs,
+  stale/drifted plans, restart safety, persistence, and evaluator accounting.
+- Rehearsal test split: **30 episodes, zero execution errors**. On 24 actionable
+  fault cases, one-shot baseline recovery was **15/24 (62.5%)**; rehearsal was
+  **24/24 (100%)**, an improvement of **37.5 percentage points**.
+- Compound fault recovery: **0/9 versus 9/9**. Both workflows made no change on
+  **6/6 controls**. Rehearsal measured **405 candidate experiments**, 30 controls,
+  and 1,305 experiment requests.
+- Full evidence: `artifacts/rehearsal-test.json`. Methodology and a versioned
+  summary are in [docs/REHEARSAL_EVALUATION.md](docs/REHEARSAL_EVALUATION.md).
+- The original v0.1 baseline suite measured 105/105 correct causes/actions,
+  75/75 recoveries, and 30/30 control no-action decisions. Those results cover
+  the original known single-fault families; see [docs/BASELINE_RESULTS.md](docs/BASELINE_RESULTS.md).
 
-Full evaluation traces are in `artifacts/baseline-test.json`; the measured summary
-and limitations are in [docs/BASELINE_RESULTS.md](docs/BASELINE_RESULTS.md).
-The test suite emits one upstream Starlette deprecation warning about its httpx
-TestClient adapter; it does not affect the passing checks. GitHub Actions is
-configured, but has not been exercised on a remote repository.
+Chrome desktop walkthrough verified compound-fault injection, investigation,
+citation-to-log navigation, all 15 rehearsal outcomes, two-action promotion with
+five fresh HTTP 200 responses, persistent history, and disabled archive actions.
+JavaScript syntax, Python compilation, and Git whitespace checks passed. Final
+copy/typography refinements were reviewed in code; a separate mobile viewport
+visual check remains outstanding. Responsive layouts and keyboard tab navigation
+are implemented.
 
-The host shell blocks local HTTP port binding, so real-HTTP checks and the demo
-ran in Docker. Tests do not skip or replace the HTTP lab with fake telemetry.
+The upgraded Docker app is healthy at `http://127.0.0.1:8000`; the runtime volume
+preserves history. Use `docker compose stop app` to stop it.
 
-No live Mistral key is configured in the current environment. Mocked adapter tests
-are contract checks, not live API validation or model performance measurements.
+The host shell blocks local HTTP binding, so real-HTTP execution runs in Docker.
+One upstream Starlette warning concerns the httpx TestClient adapter; no checks
+are skipped because of it. Live Mistral credentials are not configured: mocked
+adapter tests verify the protocol, not live API access or model performance.
 
-## Next work
+## Interpretation and next work
 
-1. Exercise the live Mistral adapter on smoke cases, then compare all model modes.
-2. Add ambiguous symptoms, multi-fault cases, and unseen fault families.
-3. Manually review semantic support of findings; automate only defensible checks.
-4. Collect feedback from two or three engineers and record resulting changes.
-5. Extend the lab toward PostgreSQL/Redis once the first demo is stable.
+The expanded workflow uses a larger action/experiment budget than the one-shot
+baseline. Cases repeat ten known mechanisms across three seeds; they are not
+independent production incidents or unseen-fault generalization tests. Passing
+HTTP requests do not establish semantic correctness or production safety.
 
-The first version uses local HTTP and SQLite, as recorded in `docs/DECISION.md`.
-It does not yet implement the larger distributed stack proposed in the linked
-planning thread. No deployment, customer study, fine-tuning, or production
-accuracy claim has been made.
+Next: credentialed Mistral evaluation; an equal-budget iterative baseline;
+nonrecoverable and ambiguous faults; semantic outcome assertions; engineer
+feedback. Production adapters and stateful distributed-service cloning are
+separate work. No production deployment, customer study, reduced-MTTR result,
+or first-ever novelty claim is made. See [docs/CV.md](docs/CV.md) for defensible
+portfolio wording.

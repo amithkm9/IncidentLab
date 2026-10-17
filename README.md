@@ -1,11 +1,17 @@
 # IncidentLab
 
-Investigate a failing checkout application, inspect the evidence, apply a proposed
-fix to a disposable lab, and verify recovery against fresh HTTP requests.
+An incident recovery workbench that investigates failures, **rehearses fixes in
+isolated copies**, and promotes a measured recovery plan to a disposable lab.
 
-This first version has a FastAPI backend, a responsive browser interface, two
-real local HTTP services, a SQLite catalog, runbook retrieval, a deterministic
-offline baseline, and a bounded Mistral tool-calling adapter.
+A single error can hide another: restoring an inventory route may reveal a
+pricing regression. IncidentLab compares a no-action control, five individual
+fixes, and ten two-action combinations against real HTTP requests. It recommends
+the smallest passing plan and verifies it again after explicit promotion.
+
+Built with FastAPI, real checkout/inventory HTTP services, SQLite, a buildless
+responsive frontend, BM25 runbooks, deterministic offline investigation, and a
+bounded Mistral tool-calling adapter. Ten scenarios include three compound faults
+and healthy/missing-evidence controls.
 
 **Offline baseline results are not Mistral model performance.** Live Mistral
 evaluation requires your API key. See [STATUS.md](STATUS.md) for measured results
@@ -36,18 +42,24 @@ This is a local demo without user authentication, not a public service.
 
 ## Try the complete workflow
 
-1. Choose **Configuration drift**, then **Inject scenario**. Four checkout
-   requests should fail with HTTP 502 because inventory returns HTTP 404.
-2. Select **Offline baseline** and **Run investigation**.
-3. Open the log and deployment evidence. Click a citation to jump to its record.
-4. Select **Apply fix & verify**. The lab restores the inventory route and sends
-   five new requests. Recovery requires all five to return HTTP 200.
-5. Investigate again to confirm the healthy request window. Export the JSON
-   record to retain the finding, tools, observations, and recovery result.
+1. Choose **Route drift masks a pricing regression** and **Start scenario**.
+2. Run the **Offline baseline** investigation. Inspect the route failure and
+   follow its citations into the Evidence tab.
+3. Open **Fix rehearsal** and **Run rehearsal** with one or two actions. The
+   active lab stays unchanged while 15 candidate plans and one control run in
+   separate HTTP/SQLite copies.
+4. Compare the responses: fixing only the route still leaves checkout broken.
+   The smallest passing plan restores the route **and** rolls back pricing.
+5. Select **Apply plan & verify**. The server checks the episode, revision, and
+   snapshot fingerprint, then requires five fresh HTTP 200 responses.
+6. Open **Incident history**, inspect the saved evidence, and download the JSON
+   experiment record or Markdown incident report. Reloading the page preserves
+   the current workspace; restarting the server preserves read-only history.
 
-Also try **Missing evidence**: the investigator should abstain and propose no
-action. A successful process liveness check alone never establishes checkout
-readiness. See [the demo script](docs/DEMO.md).
+Try **Missing evidence** to see abstention and **Healthy control** to see a
+no-change recommendation. The diagnosis can also apply its single proposed fix;
+that workflow deliberately exposes incomplete recovery on compound incidents.
+See [the demo script](docs/DEMO.md).
 
 ## Use Mistral
 
@@ -78,6 +90,7 @@ configured input/output prices. With no prices, cost remains unknown.
 uv run --extra dev pytest -q
 uv run incidentlab-eval --mode baseline --split smoke
 uv run incidentlab-eval --mode baseline --split test
+uv run incidentlab-rehearsal-eval --split test
 ```
 
 Or with Docker:
@@ -85,6 +98,7 @@ Or with Docker:
 ```sh
 docker compose --profile test run --build --rm test
 docker compose --profile eval run --build --rm eval incidentlab-eval --mode baseline --split test
+docker compose --profile eval run --rm eval incidentlab-rehearsal-eval --split test
 ```
 
 On Linux, prefix the evaluation command with `LOCAL_UID="$(id -u)"
@@ -96,6 +110,12 @@ telemetry controls. Seed splits do not establish generalization to unseen fault
 families. Each run creates real traffic and saves per-case findings, traces,
 recovery responses, manifest hash, and environment metadata in `artifacts/`.
 See [evaluation methodology](docs/EVALUATION.md).
+
+The separate rehearsal comparison has **30 cases: 15 single faults, nine compound
+faults, and six controls**. It compares one-shot baseline remediation with the
+larger rehearsal workflow, saves both arms and every candidate outcome, and
+retains failures in metric denominators. See [rehearsal evaluation and measured
+results](docs/REHEARSAL_EVALUATION.md) and [CV-ready project claims](docs/CV.md).
 
 To compare model modes after configuring credentials:
 
@@ -117,9 +137,14 @@ flowchart LR
     Investigator --> Tools[Read-only tool allowlist]
     Tools --> Lab[Checkout + Inventory + SQLite]
     Tools --> Runbooks[BM25 runbook index]
-    API --> Records[JSON findings and traces]
-    UI --> Review[Explicit apply-fix action]
-    Review --> Gate[Current finding and episode check]
+    API --> Records[SQLite history and audit events]
+    API --> Snapshot[Actual-state snapshot]
+    Snapshot --> Clones[Isolated HTTP + SQLite clones]
+    Clones --> Compare[Control + 15 candidate plans]
+    Compare --> Recommendation[Smallest passing plan]
+    UI --> Review[Explicit plan promotion]
+    Recommendation --> Review
+    Review --> Gate[Episode + revision + fingerprint checks]
     Gate --> Lab
     Lab --> Verify[Five fresh HTTP requests]
 ```
@@ -140,25 +165,34 @@ a new observation window so old failed requests cannot contaminate verification.
 
 | Path | Purpose |
 | --- | --- |
-| `src/incidentlab/lab.py` | Real HTTP/SQLite lab and seven controlled scenarios |
+| `src/incidentlab/lab.py` | Real HTTP/SQLite lab, ten scenarios, snapshot/clone lifecycle |
+| `src/incidentlab/rehearsal.py` | Bounded intervention search and measured plan selection |
 | `src/incidentlab/investigator.py` | Offline rules and Mistral adapter |
 | `src/incidentlab/tools.py` | Typed tool schemas, evidence collection, BM25 |
-| `src/incidentlab/service.py` | Episode lifecycle, action checks, artifact storage |
+| `src/incidentlab/service.py` | Episode lifecycle, promotion guards, report generation |
+| `src/incidentlab/store.py` | Indexed SQLite history, atomic record/event transactions |
 | `src/incidentlab/api.py` | API and static interface |
 | `src/incidentlab/static/` | Buildless browser UI; no CDN dependencies |
-| `src/incidentlab/evaluate.py` | Frozen-suite runner and trace reports |
+| `src/incidentlab/evaluate.py` | Original frozen-suite runner and trace reports |
+| `src/incidentlab/evaluate_rehearsal.py` | Single-fix versus rehearsal evaluation |
 | `tests/` | Real-HTTP integration tests and mocked Mistral contract tests |
 
-API documentation is at `/docs`. Local records are in
-`runtime/investigations/`. The current incident and selected finding are
-in-memory; saved JSON records survive restart, but they cannot be replayed as
-remediation authorization. The browser workspace shows the current session and
-does not yet provide a history browser.
+API documentation is at `/docs`. Records and append-only audit events are in
+`runtime/history.sqlite`; v0.1 JSON exports are imported once without replacing
+newer records. Current lab authority stays in memory. A server restart creates a
+new episode, so historical fixes cannot authorize mutations of a new lab.
+
+Rehearsal snapshots use SQLite's backup API and independent loopback ports. They
+copy the **current state**, including partial repairs, without reading scenario
+labels or expected actions. A SHA-256 state fingerprint detects changes between
+rehearsal and promotion. Search is bounded to five known actions and at most two
+per plan; it does not establish production safety or arbitrary fault recovery.
 
 ## Next increments
 
-Run the live Mistral comparison, add ambiguous timeout and multi-fault cases,
-review semantic support manually, and gather feedback from two or three
-engineers. PostgreSQL/Redis fault families and a production telemetry integration
-are subsequent extensions. The initial scope decision is in
-[docs/DECISION.md](docs/DECISION.md).
+Run a credentialed Mistral comparison, add an equal-budget iterative diagnosis
+baseline, assess semantic correctness beyond HTTP status, and collect engineer
+feedback. Production telemetry adapters, richer databases, and real deployment
+rollback require separate engineering. This version does not clone production
+systems or claim new scientific causality methods. The original scope decision
+is in [docs/DECISION.md](docs/DECISION.md).
