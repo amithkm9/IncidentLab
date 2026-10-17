@@ -21,6 +21,7 @@ dev = ["pytest>=8.3,<10"]
 incidentlab = "incidentlab.cli:main"
 incidentlab-eval = "incidentlab.evaluate:main"
 incidentlab-rehearsal-eval = "incidentlab.evaluate_rehearsal:main"
+incidentlab-adaptive-eval = "incidentlab.evaluate_adaptive:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/incidentlab"]
