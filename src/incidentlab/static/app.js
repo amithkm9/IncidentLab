@@ -2,6 +2,13 @@
 const $ = (id) => document.getElementById(id);
 const state = { scenarios: [], config: null, status: null, record: null, rehearsal: null, workspace: null, history: null, busy: false, archive: false, view: "workbench", tab: "diagnosis" };
 const modeNames = { baseline: "Offline baseline", mistral: "Mistral · tools + retrieval", retrieval: "Mistral · retrieval only", prompt: "Mistral · prompt only" };
+const strategyNames = { exhaustive: "Compare all plans", adaptive: "Adaptive · offline policy", mistral: "Adaptive · Mistral agent" };
+const stopReasonNames = { recovered: "A passing plan was found", recovery_found: "A passing plan was found", success: "A passing plan was found", budget_exhausted: "Experiment budget reached", healthy_control: "No-change control passed", control_healthy: "No-change control passed", missing_telemetry: "Diagnostic telemetry unavailable", no_candidates: "No further candidate plans", no_new_plan: "No new plan proposed", no_plan: "No further plan proposed", exhausted: "Candidate plans exhausted", completed: "Comparison completed", all_plans_tested: "All candidate plans tested", policy_abstained: "Policy abstained", agent_abstained: "Agent abstained", provider_error: "Provider request failed", invalid_plan: "Planner proposal rejected", experiment_error: "Isolated experiment failed to complete" };
+const rehearsalFailures = {
+  provider_error: { title: "Mistral experiment planning failed.", description: "The provider request did not complete successfully. No recovery plan was authorized; review any recorded outcomes and retry the rehearsal." },
+  invalid_plan: { title: "The proposed experiment plan was rejected.", description: "The planner returned a proposal that failed validation. No recovery plan was authorized; review the record before retrying." },
+  experiment_error: { title: "An isolated experiment could not complete.", description: "The lab could not finish measuring a candidate plan. No recovery plan was authorized; review any recorded outcomes before retrying." },
+};
 const toolNames = { get_metrics: "Request metrics", query_logs: "Application logs", get_service_health: "Service health", get_recent_changes: "Deployment changes", search_runbooks: "Runbook search" };
 const actionNames = { no_action: "No changes proposed", restore_inventory_route: "Restore inventory route", restore_inventory_service: "Restore inventory service", restore_timeout_budget: "Restore timeout budget", restore_catalog_path: "Restore catalog path", rollback_checkout_release: "Roll back checkout release" };
 const tabs = ["diagnosis", "rehearsal", "evidence"];
@@ -132,6 +139,19 @@ function modeNote() {
   text("mode-note", mode === "baseline"
     ? "Fixed rules for known lab scenarios. This is not a Mistral model result."
     : `${state.config?.model || "Configured model"}. ${mode === "mistral" ? "Up to 16 read-only tool calls; token usage is recorded." : "Initial evidence snapshot; no model-directed tool calls."} No changes are applied by the investigator.`);
+}
+function rehearsalStrategyNote() {
+  const strategy = $("rehearsal-strategy").value;
+  const adaptive = strategy !== "exhaustive";
+  $("experiment-budget-field").hidden = !adaptive;
+  text("rehearsal-mode-note", strategy === "mistral"
+    ? `The Mistral agent chooses the next plan from lab evidence and previous outcomes. Sanitized logs, metrics, service health, and experiment observations are sent to ${state.config?.model || "the configured Mistral model"} through the Mistral API. Calls can incur provider charges; usage is recorded.`
+    : adaptive
+      ? "A deterministic offline policy chooses the next plan using observed failures and earlier experiment results. No model API calls. It may leave plans untested when it stops."
+      : "Compare every candidate within the selected plan size. No model API calls. The selected result is minimal within this tested set.");
+  text("rehearsal-scope-note", adaptive
+    ? "The budget limits candidate experiments; a no-change control is measured separately. The active lab stays unchanged."
+    : `Up to ${$("max-actions").value === "1" ? "5" : "15"} candidate plans + a no-change control. Your active lab stays unchanged.`);
 }
 function renderStatus(status) {
   state.status = status;
@@ -281,34 +301,97 @@ function renderRehearsal(record) {
   $("rehearsal-result").hidden = !report;
   $("rehearsal-dot").hidden = !report;
   $("promotion-result").hidden = true;
+  $("rehearsal-run-meta").replaceChildren();
+  $("decision-trail").replaceChildren();
+  $("decision-trail-section").hidden = true;
   if (!report) return;
   const plan = recommendedPlan();
   const controlHealthy = report.control?.verification?.all_healthy || report.summary?.control_healthy;
   const missingTelemetry = report.summary?.abstention_reason === "missing_telemetry";
+  const planningFailure = rehearsalFailures[report.budget?.stop_reason];
   const recommendation = $("recommendation");
   recommendation.className = `recommendation${!plan && !controlHealthy ? " warning" : ""}`;
   recommendation.replaceChildren(el("span", "recommendation-icon", plan || controlHealthy ? "✓" : "!"));
   const message = el("div");
-  message.append(el("h3", "", missingTelemetry ? "Rehearsal withheld: diagnostic telemetry unavailable." : controlHealthy ? "The control is already healthy." : plan ? `${plan.actions.length === 1 ? "One action" : `${plan.actions.length} actions`} recovered this snapshot.` : "No tested plan recovered checkout."));
-  message.append(el("p", "", missingTelemetry ? "No candidate fixes were tested or authorized. Restore diagnostic evidence before selecting a recovery action." : controlHealthy
+  message.append(el("h3", "", planningFailure ? planningFailure.title : missingTelemetry ? "Rehearsal withheld: diagnostic telemetry unavailable." : controlHealthy ? "The control is already healthy." : plan ? `${plan.actions.length === 1 ? "One action" : `${plan.actions.length} actions`} recovered this snapshot.` : "No tested plan recovered checkout."));
+  message.append(el("p", "", planningFailure ? planningFailure.description : missingTelemetry ? "No candidate fixes were tested or authorized. Restore diagnostic evidence before selecting a recovery action." : controlHealthy
     ? "Fresh requests passed without changes. No remediation is recommended."
-    : plan ? `${actionLabel(plan.actions)}. This is the smallest passing plan in the tested set.`
+    : plan ? `${actionLabel(plan.actions)}. This is the smallest passing tested plan; untested plans are not evaluated.`
       : "Review the evidence and experiment outcomes. A larger plan or a different intervention may be needed."));
   recommendation.append(message);
   text("plans-tested", number(report.summary?.tested_plans ?? report.experiments?.length));
   text("plans-passed", number(report.summary?.successful_plans ?? report.experiments?.filter((item) => item.verification.all_healthy).length));
   text("minimal-actions", controlHealthy ? "0" : report.summary?.minimal_action_count ?? plan?.actions.length ?? "—");
   text("rehearsal-duration", duration(report.elapsed_ms));
+  renderRehearsalRun(report);
   renderExperiments();
   $("promotion").hidden = !plan || !!record.promotion || state.archive;
   const promotionDescription = $("promotion").querySelector("p");
   promotionDescription.textContent = isCurrent(record)
-    ? "Apply the smallest passing plan to the active lab, then verify it with fresh requests."
+    ? "Apply the smallest passing tested plan to the active lab, then verify it with fresh requests."
     : "The lab has changed since this experiment. Run a new rehearsal before promoting a plan.";
   $("rehearsal-limitations").replaceChildren(...(report.limitations || []).map((limitation) => el("li", "", limitation)));
   $("rehearsal-download").href = `/api/rehearsals/${record.id}`;
   $("rehearsal-download").download = `incidentlab-rehearsal-${record.id}.json`;
   if (record.promotion) verificationNotice($("promotion-result"), record.promotion, "Tested plan applied. Recovery verified.");
+}
+function renderRehearsalRun(report) {
+  const strategy = report.strategy || "exhaustive";
+  const meta = $("rehearsal-run-meta");
+  const heading = el("div", "rehearsal-run-heading");
+  heading.append(el("strong", "", strategyNames[strategy] || strategy.replaceAll("_", " ")));
+  const budget = report.budget;
+  if (budget) {
+    const count = budget.used_experiments ?? report.summary?.tested_plans ?? 0;
+    const cap = budget.max_experiments;
+    heading.append(el("span", "tag", `${number(count)}${cap != null ? ` / ${number(cap)}` : ""} EXPERIMENTS`));
+  }
+  meta.append(heading);
+  if (budget?.stop_reason) meta.append(el("p", "", `Stopped: ${stopReasonNames[budget.stop_reason] || budget.stop_reason.replaceAll("_", " ")}.`));
+  const usage = report.provider_usage;
+  if (strategy === "mistral" || usage?.model || usage?.api_calls > 0) {
+    if (usage) {
+      const parts = [usage.model || "Model not recorded"];
+      if (usage.api_calls != null) parts.push(`${number(usage.api_calls)} API calls`);
+      if (usage.input_tokens != null && usage.output_tokens != null) parts.push(`${number(usage.input_tokens)} input / ${number(usage.output_tokens)} output tokens`);
+      meta.append(el("p", "", parts.join(" · ")));
+      const hasCost = typeof usage.estimated_cost_usd === "number" && Number.isFinite(usage.estimated_cost_usd);
+      meta.append(el("p", "", `${hasCost ? `$${usage.estimated_cost_usd.toFixed(6)} estimated API cost` : "API cost not estimated"}${usage.cost_note ? ` · ${usage.cost_note}` : ""}`));
+    } else meta.append(el("p", "", "Provider usage was not recorded in this saved report."));
+  } else meta.append(el("p", "", strategy === "adaptive" ? "Offline policy · no model API calls. Only the selected candidates were tested." : "Exhaustive comparison within the selected plan size · no model API calls."));
+  const decisions = Array.isArray(report.decision_trace) ? report.decision_trace : [];
+  $("decision-trail-section").hidden = !decisions.length;
+  text("decision-count", `${decisions.length} ${decisions.length === 1 ? "STEP" : "STEPS"}`);
+  $("decision-trail").replaceChildren(...decisions.map((decision, index) => {
+    const item = el("li", "decision-item");
+    const top = el("div", "decision-item-heading");
+    const step = decision.step ?? index + 1;
+    top.append(el("span", "decision-step", String(step)), el("strong", "", decision.actions?.length ? actionLabel(decision.actions) : "Planning stopped"));
+    const outcome = typeof decision.outcome === "string" ? decision.outcome.replaceAll("_", " ") : "Outcome not recorded";
+    top.append(el("span", "tag", outcome));
+    item.append(top);
+    if (decision.hypothesis) item.append(el("p", "decision-hypothesis", decision.hypothesis));
+    const statuses = Array.isArray(decision.statuses) ? decision.statuses : [];
+    if (statuses.length) {
+      const observed = el("div", "decision-observations");
+      observed.append(el("span", "", "Observed HTTP"));
+      const codes = el("div", "http-codes");
+      for (const code of statuses) {
+        const codeNode = el("span", `http-code${code >= 400 ? " failed" : ""}`, String(code));
+        codeNode.title = `HTTP ${code}`;
+        codes.append(codeNode);
+      }
+      observed.append(codes);
+      item.append(observed);
+    }
+    if (decision.evidence_ids?.length) {
+      const citations = el("div", "decision-citations");
+      citations.append(el("span", "", "Input evidence"));
+      for (const id of decision.evidence_ids) citations.append(el("code", "", id));
+      item.append(citations);
+    }
+    return item;
+  }));
 }
 function renderExperiments() {
   const report = state.rehearsal?.report;
@@ -324,7 +407,7 @@ function renderExperiments() {
     const row = el("tr", recommended ? "recommended" : "");
     const labelCell = el("td");
     labelCell.append(el("span", "plan-label", actionLabel(experiment.actions)));
-    if (recommended) labelCell.append(el("small", "", "SMALLEST PASSING PLAN"));
+    if (recommended) labelCell.append(el("small", "", "SMALLEST PASSING TESTED PLAN"));
     else if (!experiment.actions?.length) labelCell.append(el("small", "", "NO-CHANGE CONTROL"));
     const responsesCell = el("td");
     const codes = el("div", "http-codes");
@@ -379,6 +462,9 @@ function renderNextStep() {
   } else if (state.rehearsal?.report?.summary?.abstention_reason === "missing_telemetry") {
     title = "Restore the missing evidence";
     description = "Diagnostic telemetry is unavailable. No candidate changes were tested or authorized for this snapshot.";
+  } else if (rehearsalFailures[state.rehearsal?.report?.budget?.stop_reason]) {
+    title = state.rehearsal.report.budget.stop_reason === "experiment_error" ? "Review the experiment failure" : "Review the planning failure";
+    description = "The rehearsal could not produce an authorized recovery plan. Inspect the saved outcome, then retry or choose another strategy.";
   } else if (latestRecovery) {
     title = "A fault may still remain";
     description = "The last fix did not restore healthy requests. Run a new rehearsal against the updated state to find the remaining intervention.";
@@ -562,7 +648,7 @@ $("demo").addEventListener("click", () => operation("Starting a compound failure
   await api("/api/investigate", { mode: "baseline", question: $("question").value });
   await refreshWorkspace();
   switchTab("diagnosis");
-  text("activity", "Demo ready. Two faults are present. Review the first finding, then rehearse to discover the smallest complete recovery.");
+  text("activity", "Demo ready. Two faults are present. Review the first finding, then rehearse to test a complete recovery.");
   $("finding-title").tabIndex = -1;
   $("finding-title").focus({ preventScroll: true });
   $("finding").scrollIntoView({ block: "nearest", behavior: "auto" });
@@ -605,20 +691,27 @@ $("probe").addEventListener("click", () => operation("Sending five fresh checkou
 }));
 $("show-evidence").addEventListener("click", () => switchTab("evidence", true));
 $("go-rehearse").addEventListener("click", () => switchTab("rehearsal", true));
+$("rehearsal-strategy").addEventListener("change", rehearsalStrategyNote);
+$("max-actions").addEventListener("change", rehearsalStrategyNote);
 $("remediate").addEventListener("click", () => operation("Applying the single proposed fix and verifying fresh requests…", async () => {
   const result = await api("/api/remediate", { investigation_id: state.record.id, action: state.record.result.finding.action });
   await refreshWorkspace();
   text("activity", result.verification.all_healthy ? "Recovery verified against fresh traffic. The result is saved with the investigation." : "The suggestion was applied, but checkout is still failing. Rehearse the updated state to find the remaining fix.");
 }));
-$("rehearse").addEventListener("click", () => operation("Testing recovery plans in isolated copies. The active lab stays unchanged; this may take a minute…", async () => {
-  await api("/api/rehearse", { max_actions: Number($("max-actions").value), probe_count: Number($("probe-count").value) });
+$("rehearse").addEventListener("click", () => {
+  const strategy = $("rehearsal-strategy").value;
+  if (strategy !== "exhaustive" && !$("max-experiments").reportValidity()) return;
+  operation(strategy === "mistral" ? "Mistral is selecting experiments from lab observations. Isolated tests may take a few minutes; the active lab stays unchanged…" : "Testing recovery plans in isolated copies. The active lab stays unchanged; this may take a minute…", async () => {
+  await api("/api/rehearse", { strategy, max_experiments: strategy === "exhaustive" ? 4 : Number($("max-experiments").value), max_actions: Number($("max-actions").value), probe_count: Number($("probe-count").value) });
   await refreshWorkspace();
   switchTab("rehearsal");
-  text("activity", state.rehearsal?.report?.summary?.abstention_reason === "missing_telemetry" ? "Rehearsal withheld: diagnostic telemetry is unavailable. No candidate changes were tested or authorized." : recommendedPlan() ? "Rehearsal complete. Review the smallest passing plan before promoting it." : state.rehearsal?.report?.control?.verification?.all_healthy ? "Rehearsal complete. The no-change control is healthy; no fix is needed." : "Rehearsal complete. No tested plan recovered checkout; review the measured outcomes.");
+  const stopReason = state.rehearsal?.report?.budget?.stop_reason;
+  text("activity", rehearsalFailures[stopReason] ? `Rehearsal stopped: ${stopReasonNames[stopReason].toLowerCase()}. No recovery plan was authorized; review the saved outcome.` : state.rehearsal?.report?.summary?.abstention_reason === "missing_telemetry" ? "Rehearsal withheld: diagnostic telemetry is unavailable. No candidate changes were tested or authorized." : recommendedPlan() ? "Rehearsal complete. Review the smallest passing tested plan before promoting it." : state.rehearsal?.report?.control?.verification?.all_healthy ? "Rehearsal complete. The no-change control is healthy; no fix is needed." : "Rehearsal complete. No tested plan recovered checkout; review the measured outcomes.");
   $("recommendation").tabIndex = -1;
   $("recommendation").focus({ preventScroll: true });
   $("recommendation").scrollIntoView({ block: "start", behavior: "auto" });
-}));
+  });
+});
 $("promote").addEventListener("click", () => operation("Promoting the tested recovery plan and verifying fresh traffic in the active lab…", async () => {
   const result = await api("/api/promote", { rehearsal_id: state.rehearsal.id, plan_id: state.rehearsal.report.recommended_plan_id });
   await refreshWorkspace();
@@ -648,8 +741,14 @@ async function loadConfiguration() {
     option.disabled = option.value !== "baseline" && !config.mistral_configured;
     option.textContent = `${modeNames[option.value] || option.value}${option.disabled ? " · API key required" : ""}`;
   }
+  for (const option of $("rehearsal-strategy").options) {
+    option.disabled = option.value === "mistral" && !config.mistral_configured;
+    option.textContent = `${strategyNames[option.value] || option.value}${option.disabled ? " · API key required" : ""}`;
+  }
+  if ($("rehearsal-strategy").value === "mistral" && !config.mistral_configured) $("rehearsal-strategy").value = "exhaustive";
   text("app-version", `INCIDENTLAB ${config.version || ""} / LOCAL`);
   modeNote();
+  rehearsalStrategyNote();
 }
 operation("Connecting to your recovery workspace…", async () => {
   await loadConfiguration();
