@@ -3,87 +3,61 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#172725">
-  <meta name="description" content="Investigate real application failures, inspect the evidence, and verify recovery in a disposable local lab.">
-  <title>IncidentLab — Incident workspace</title>
+  <meta name="theme-color" content="#152c28">
+  <meta name="description" content="Investigate real incidents, rehearse recovery plans in isolated environments, and verify every fix against fresh traffic.">
+  <title>IncidentLab — Recovery workbench</title>
   <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="/" aria-label="IncidentLab home"><span class="brand-icon">iL</span>IncidentLab<span class="version">01</span></a>
-    <div class="workspace-label">WORKSPACE</div>
-    <div class="nav-active"><span aria-hidden="true">⌘</span> Incident investigation <span class="nav-dot"></span></div>
-    <div class="sidebar-section">
-      <p class="overline">THE WORKFLOW</p>
-      <ol class="steps">
-        <li><span>01</span><div>Introduce a failure<small>Real requests. Known conditions.</small></div></li>
-        <li><span>02</span><div>Follow the evidence<small>Logs, changes, health, runbooks.</small></div></li>
-        <li><span>03</span><div>Verify the recovery<small>Apply a fix. Test fresh requests.</small></div></li>
-      </ol>
-    </div>
-    <div class="sidebar-bottom">
-      <span class="lab-tag"><span class="dot"></span> Disposable lab</span>
-      <p>Investigations are read-only.<br>You choose when to apply a fix.</p>
-      <a href="/docs" target="_blank" rel="noopener">Explore the API <span aria-hidden="true">↗</span></a>
-    </div>
+  <a class="skip-link" href="#main-content">Skip to workspace</a>
+  <aside class="sidebar" aria-label="Workspace navigation">
+    <a class="brand" href="/" aria-label="IncidentLab home"><img src="/static/icon.svg" width="34" height="34" alt=""><span>IncidentLab<small>RECOVERY ENGINEERING</small></span></a>
+    <div class="workspace-switch"><span class="workspace-avatar">L</span><div>Local workspace<small>Disposable environment</small></div><span class="live-dot" aria-hidden="true"></span></div>
+    <p class="nav-caption">WORKSPACE</p>
+    <nav class="main-nav">
+      <button id="nav-workbench" class="nav-item active" type="button" aria-current="page"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="12" y="3" width="5" height="5" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/></svg><span>Recovery workbench</span></button>
+      <button id="nav-history" class="nav-item" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5a7 7 0 1 1-1 8M3 2v5h5M10 6v4l3 2"/></svg><span>Incident history</span><span id="history-count" class="nav-count">0</span></button>
+    </nav>
+    <div class="sidebar-note"><span class="sidebar-note-icon" aria-hidden="true">↗</span><strong>Evidence before action.</strong><p>Compare recovery plans on isolated copies before changing the active lab.</p></div>
+    <div class="sidebar-bottom"><a href="/docs" target="_blank" rel="noopener"><span>API reference</span><span aria-hidden="true">↗</span></a><div class="sidebar-status"><span id="connection-dot" class="live-dot"></span><span id="connection">Connecting to lab</span></div><small id="app-version">INCIDENTLAB / LOCAL</small></div>
   </aside>
-
-  <main>
-    <header class="topbar"><span>Workspace <span class="slash">/</span> <strong>Checkout application</strong></span><span id="connection" class="connection">Connecting…</span></header>
+  <main id="main-content" tabindex="-1">
+    <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-page">Recovery workbench</strong></div><span class="environment-label"><span class="live-dot"></span> Local lab <span class="environment-detail">· checkout application</span></span></header>
     <div class="content">
-      <header class="page-header">
-        <div><p class="eyebrow">OBSERVE → INVESTIGATE → VERIFY</p><h1>Incident workspace<span>.</span></h1><p class="intro">A working failure lab. A diagnosis you can inspect.</p></div>
-        <span class="outline-tag">LOCAL ENVIRONMENT</span>
-      </header>
       <div id="error" class="notice error" role="alert" hidden></div>
-      <div id="activity" class="activity" role="status" aria-live="polite">Loading the lab…</div>
-
-      <section class="panel scenario-panel" aria-labelledby="scenario-title">
-        <div class="section-heading"><h2 id="scenario-title"><span class="section-number">01</span> Set the conditions</h2><span class="subtle">Reproducible fault injection</span></div>
-        <form id="scenario-form" class="scenario-form">
-          <div class="field scenario-field"><label for="scenario">Scenario</label><select id="scenario" required></select></div>
-          <div class="field seed-field"><label for="seed">Seed</label><input id="seed" type="number" min="0" max="1000000" value="42" required></div>
-          <button id="inject" class="button secondary" type="submit">Inject scenario <span aria-hidden="true">↗</span></button>
-        </form>
-        <p id="scenario-description" class="field-help"></p>
-      </section>
-
-      <section class="telemetry" aria-label="Observed checkout health">
-        <div class="health-block"><span id="health-badge" class="health-badge">Awaiting telemetry</span><p id="health-caption">Checkout request window</p><div id="request-bars" class="request-bars" aria-label="Recent HTTP responses"></div></div>
-        <div class="metric"><span>REQUESTS</span><strong id="request-count">—</strong><small>Current observation window</small></div>
-        <div class="metric"><span>ERROR RATE</span><strong id="error-rate">—</strong><small>Measured HTTP failures</small></div>
-        <div class="metric"><span>MEDIAN LATENCY</span><strong id="latency">—</strong><small>Checkout response time</small></div>
-      </section>
-
-      <div class="system-strip"><span class="overline">LAB TOPOLOGY</span><span class="system-node">◈ &nbsp;Checkout</span><span class="system-line">→</span><span class="system-node">Inventory <small>HTTP</small></span><span class="system-line">+</span><span class="system-node">Catalog <small>SQLite</small></span><button id="probe" class="text-button" type="button">Send 5 requests ↗</button></div>
-
-      <section class="panel investigation-panel" aria-labelledby="investigation-title">
-        <div class="section-heading"><h2 id="investigation-title"><span class="section-number">02</span> Investigate the incident</h2><span id="mode-badge" class="neutral-tag">OFFLINE BASELINE</span></div>
-        <form id="investigate-form">
-          <label for="question">Incident brief</label>
-          <textarea id="question" rows="2" minlength="5" maxlength="2000" required>Investigate checkout health. Identify the cause of any failure and propose an evidence-backed fix.</textarea>
-          <div class="investigation-controls"><div class="mode-field"><label for="mode">Investigator</label><select id="mode"><option value="baseline">Offline baseline · deterministic rules</option><option value="mistral">Mistral · tools + retrieval</option><option value="retrieval">Mistral · retrieval only</option><option value="prompt">Mistral · prompt only</option></select></div><button id="investigate" class="button primary" type="submit">Run investigation <span aria-hidden="true">→</span></button></div>
-          <p id="mode-note" class="field-help">The baseline uses fixed rules for these lab scenarios. It is not a Mistral model result.</p>
-        </form>
-      </section>
-
-      <div class="results-grid">
-        <section class="panel finding-panel" aria-labelledby="finding-label">
-          <div class="section-heading"><h2 id="finding-label"><span class="section-number">03</span> Finding & recovery</h2><a id="download" class="text-link" hidden>Export JSON ↗</a></div>
-          <div id="finding-empty" class="empty-state"><span class="empty-symbol" aria-hidden="true">◎</span><h3>Start with the evidence.</h3><p>Run an investigation to see a diagnosis, its supporting observations, and a proposed action.</p><div class="empty-tags"><span>Evidence citations</span><span>Verified recovery</span></div></div>
-          <div id="finding" hidden>
-            <span id="finding-cause" class="cause-tag"></span><h3 id="finding-title"></h3><p id="finding-explanation"></p>
-            <p class="overline evidence-label">SUPPORTING EVIDENCE</p><div id="citations" class="citations"></div>
-            <div class="remediation"><p class="overline">PROPOSED ACTION</p><code id="action-name"></code><p id="verification-plan"></p><button id="remediate" class="button primary" type="button">Apply fix & verify <span aria-hidden="true">↗</span></button><p class="field-help">Changes only this disposable lab. Verification sends 5 new requests.</p></div>
-            <div id="recovery" class="notice" role="status" hidden></div>
-            <details class="limitations"><summary>Scope & limitations</summary><p id="limitations"></p><p>Citation checks confirm that references exist. They do not prove that every claim follows from the evidence.</p></details>
-          </div>
+      <div id="activity" class="activity" role="status" aria-live="polite">Connecting to your workspace…</div>
+      <section id="workbench-view" aria-labelledby="page-title">
+        <header class="page-header"><div><p class="eyebrow">FROM FAILURE TO PROOF</p><h1 id="page-title">Recovery workbench<span>.</span></h1><p class="intro">Diagnose the incident. Test the fix. Prove the recovery.</p></div><button id="probe" class="button secondary" data-mutates type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h3l2-6 4 12 2-6h3"/></svg>Send 5 requests</button></header>
+        <div id="archive-notice" class="notice archive-notice" hidden><div><strong>Viewing an archived investigation</strong><span>This record is read-only. Health metrics below describe the active lab.</span></div><button id="return-active" class="button secondary small" type="button">Return to active incident</button></div>
+        <section class="metrics-grid" aria-label="Observed checkout health">
+          <div class="metric-card health-card"><div class="metric-label">CHECKOUT HEALTH <span id="health-icon" class="status-dot"></span></div><strong id="health-badge">Connecting</strong><div class="health-detail"><span id="health-caption">Waiting for observations</span><div id="request-bars" class="request-bars" aria-label="Recent HTTP responses"></div></div></div>
+          <div class="metric-card"><span class="metric-label">ERROR RATE</span><strong id="error-rate">—</strong><span class="metric-foot"><span id="error-count">—</span> failed requests</span></div>
+          <div class="metric-card"><span class="metric-label">MEDIAN LATENCY</span><strong id="latency">—</strong><span class="metric-foot">Measured checkout response</span></div>
+          <div class="metric-card"><span class="metric-label">REQUESTS OBSERVED</span><strong id="request-count">—</strong><span id="window-label" class="metric-foot">Current observation window</span></div>
         </section>
-        <section class="panel trace-panel" aria-labelledby="trace-label"><div class="section-heading"><h2 id="trace-label">Investigation trail</h2><span id="tool-count" class="subtle">0 calls</span></div><div id="trace-empty" class="trace-placeholder"><div class="placeholder-step"><span>1</span><div><strong>Inspect live observations</strong><p>Request metrics, logs, and service health.</p></div></div><div class="placeholder-step"><span>2</span><div><strong>Connect the context</strong><p>Compare changes and relevant runbooks.</p></div></div><div class="placeholder-step"><span>3</span><div><strong>Make the finding inspectable</strong><p>Open every tool call and evidence record.</p></div></div></div><div id="traces"></div><div id="run-stats" class="run-stats" hidden></div></section>
-      </div>
-      <footer><span>IncidentLab <span class="footer-dot">/</span> Evidence before action.</span><span id="episode">No active episode</span></footer>
+        <div class="environment-grid">
+          <section class="panel scenario-panel" aria-labelledby="scenario-title"><div class="section-heading"><h2 id="scenario-title">Set the conditions</h2><span class="tag">REPRODUCIBLE</span></div><form id="scenario-form" class="scenario-form"><div class="field scenario-field"><label for="scenario">Fault scenario</label><select id="scenario" data-mutates required></select></div><div class="field seed-field"><label for="seed">Seed</label><input id="seed" data-mutates type="number" min="0" max="1000000" value="42" required></div><button id="inject" class="button secondary" data-mutates type="submit">Start scenario <span aria-hidden="true">→</span></button></form><p id="scenario-description" class="field-help"></p></section>
+          <section class="panel topology-panel" aria-labelledby="topology-title"><div class="section-heading"><h2 id="topology-title">A real, connected system</h2><span class="subtle">3 services</span></div><div class="topology"><div class="topology-node checkout-node"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m9 9-3 3 3 3m6-6 3 3-3 3"/></svg><strong>Checkout</strong><small>HTTP API</small></div><div class="topology-connector" aria-hidden="true"><span>→</span><span>→</span></div><div class="dependency-nodes"><div class="dependency-node"><span class="node-symbol" aria-hidden="true">◈</span><strong>Inventory</strong><small>HTTP</small></div><div class="dependency-node"><span class="node-symbol" aria-hidden="true">▤</span><strong>Catalog</strong><small>SQLite</small></div></div></div><p class="topology-note">Live requests and persisted data. Each rehearsal gets its own isolated copy.</p></section>
+        </div>
+        <div class="workspace-grid">
+          <section class="panel workspace-panel" aria-label="Investigation and recovery">
+            <div class="tablist" role="tablist" aria-label="Recovery workflow"><button id="tab-diagnosis" class="tab active" role="tab" aria-selected="true" aria-controls="pane-diagnosis" tabindex="0" type="button"><span class="tab-step">1</span>Diagnosis<span id="diagnosis-dot" class="tab-dot" hidden></span></button><button id="tab-rehearsal" class="tab" role="tab" aria-selected="false" aria-controls="pane-rehearsal" tabindex="-1" type="button"><span class="tab-step">2</span>Fix rehearsal<span id="rehearsal-dot" class="tab-dot" hidden></span></button><button id="tab-evidence" class="tab" role="tab" aria-selected="false" aria-controls="pane-evidence" tabindex="-1" type="button"><span class="tab-step">3</span>Evidence<span id="evidence-count" class="tab-count">0</span></button></div>
+            <div id="pane-diagnosis" class="tab-pane" role="tabpanel" aria-labelledby="tab-diagnosis" tabindex="0">
+              <form id="investigate-form"><div class="section-heading"><div><h2>Understand what failed</h2><p class="section-description">Read-only investigation, with every observation attached.</p></div><span id="mode-badge" class="tag">OFFLINE BASELINE</span></div><label for="question">Incident brief</label><textarea id="question" data-mutates rows="2" minlength="5" maxlength="2000" required>Investigate checkout health. Identify the cause of any failure and propose an evidence-backed fix.</textarea><div class="investigation-controls"><div class="mode-field"><label for="mode">Investigator</label><select id="mode" data-mutates><option value="baseline">Offline baseline · deterministic rules</option><option value="mistral">Mistral · tools + retrieval</option><option value="retrieval">Mistral · retrieval only</option><option value="prompt">Mistral · prompt only</option></select></div><button id="investigate" class="button primary" data-mutates type="submit">Run investigation <span aria-hidden="true">→</span></button></div><p id="mode-note" class="field-help">Fixed rules for known lab scenarios. This is not a Mistral model result.</p></form>
+              <div class="finding-divider"></div>
+              <div id="finding-empty" class="empty-state"><div class="empty-illustration" aria-hidden="true"><span class="evidence-line"></span><span class="evidence-line"></span><span class="evidence-line"></span><span class="search-lens">⌕</span></div><h3>Every finding starts with evidence.</h3><p>Start a scenario, then investigate. Inspect the diagnosis and rehearse a recovery plan before applying changes.</p><div class="empty-tags"><span>Logs & metrics</span><span>Deployment changes</span><span>Runbooks</span></div></div>
+              <article id="finding" hidden><div class="finding-meta"><span id="finding-cause" class="cause-tag"></span><span id="finding-time" class="subtle"></span></div><h3 id="finding-title"></h3><p id="finding-explanation"></p><div class="evidence-heading"><p class="overline">SUPPORTING OBSERVATIONS</p><button id="show-evidence" class="text-button" type="button">View full trail <span aria-hidden="true">↗</span></button></div><div id="citations" class="citations"></div><div class="suggestion"><div class="suggestion-heading"><span class="overline">INVESTIGATOR SUGGESTION</span><span class="tag amber">NOT YET REHEARSED</span></div><strong id="action-name"></strong><p id="verification-plan"></p><div class="suggestion-actions"><button id="go-rehearse" class="button primary" type="button">Compare recovery plans <span aria-hidden="true">→</span></button><button id="remediate" class="text-button" data-mutates type="button">Apply single suggestion</button></div><p id="suggestion-note" class="field-help">A single fix may leave another fault hidden. Rehearsal compares fixes without changing this lab.</p></div><div id="recovery" class="notice" role="status" hidden></div><details class="limitations"><summary>Scope & limitations</summary><p id="limitations"></p><p>Citations are checked for existence. This does not prove that every claim follows from the evidence.</p></details><div class="export-links"><a id="download" class="text-link">Download investigation JSON <span aria-hidden="true">↗</span></a><a id="postmortem" class="text-link">Download postmortem <span aria-hidden="true">↗</span></a></div></article>
+            </div>
+            <div id="pane-rehearsal" class="tab-pane" role="tabpanel" aria-labelledby="tab-rehearsal" tabindex="0" hidden><div class="section-heading rehearsal-heading"><div><span class="eyebrow">TEST BEFORE YOU TOUCH</span><h2>Counterfactual fix rehearsal</h2><p class="section-description">What would happen if we applied a different fix?</p></div><span class="tag">ISOLATED COPIES</span></div><p class="rehearsal-intro">Compare a no-change control with individual fixes and pairs of fixes. Every plan runs against real checkout requests in a separate copy of the current lab.</p><div class="rehearsal-controls"><div class="field"><label for="max-actions">Plan size</label><select id="max-actions" data-mutates><option value="2">1–2 actions · find masked faults</option><option value="1">1 action · quick comparison</option></select></div><div class="field"><label for="probe-count">Requests per plan</label><select id="probe-count" data-mutates><option value="3">3 requests</option><option value="5">5 requests</option><option value="10">10 requests</option></select></div><button id="rehearse" class="button primary" data-mutates type="button">Run rehearsal <span aria-hidden="true">→</span></button></div><p class="field-help">Your active lab stays unchanged. Promotion is a separate step.</p><div id="rehearsal-empty" class="rehearsal-empty"><div class="experiment-diagram" aria-hidden="true"><div class="experiment-source"><span>ACTIVE LAB</span><strong>Current incident</strong></div><div class="experiment-branches"><span>Control</span><span>Fix A</span><span>Fix A + B</span></div><div class="experiment-proof"><span>Compare fresh traffic</span><strong>Smallest passing plan</strong></div></div><p>One visible error can hide another. Test combinations to find a complete recovery.</p></div><div id="rehearsal-result" hidden><div id="recommendation" class="recommendation"></div><div class="rehearsal-stats"><div><strong id="plans-tested">—</strong><span>plans tested</span></div><div><strong id="plans-passed">—</strong><span>plans passed</span></div><div><strong id="minimal-actions">—</strong><span>actions needed</span></div><div><strong id="rehearsal-duration">—</strong><span>elapsed time</span></div></div><div class="comparison-heading"><h3>Measured outcomes</h3><span class="subtle">Control + candidate plans</span></div><div class="experiment-table-wrap"><table class="experiment-table"><caption class="sr-only">Recovery plans compared with fresh HTTP requests in isolated lab copies</caption><thead><tr><th scope="col">Recovery plan</th><th scope="col">HTTP responses</th><th scope="col">Median</th><th scope="col">Result</th></tr></thead><tbody id="experiments"></tbody></table></div><div id="promotion" class="promotion"><div><strong>Promote the tested plan</strong><p>Apply the smallest passing plan to the active lab, then verify it with fresh requests.</p></div><button id="promote" class="button primary" data-mutates type="button">Apply plan & verify <span aria-hidden="true">→</span></button></div><div id="promotion-result" class="notice" role="status" hidden></div><details class="limitations"><summary>What this experiment can establish</summary><ul id="rehearsal-limitations"></ul></details><div class="export-links"><a id="rehearsal-download" class="text-link">Download experiment JSON <span aria-hidden="true">↗</span></a></div></div></div>
+            <div id="pane-evidence" class="tab-pane" role="tabpanel" aria-labelledby="tab-evidence" tabindex="0" hidden><div class="section-heading"><div><h2>An inspectable chain of evidence</h2><p class="section-description">Exact tool inputs, observed data, and source citations.</p></div><span id="tool-count" class="tag">0 CALLS</span></div><div id="trace-empty" class="empty-state compact"><span class="empty-symbol" aria-hidden="true">⌘</span><h3>No tool calls yet.</h3><p>Run an investigation to inspect the observations behind its finding.</p></div><div id="traces"></div><div id="run-stats" class="run-stats" hidden></div></div>
+          </section>
+          <aside class="context-column" aria-label="Incident context"><section class="panel next-step-panel"><span class="eyebrow">YOUR NEXT STEP</span><h2 id="next-title">Introduce a failure</h2><p id="next-description">Choose a scenario above to create a reproducible incident, or investigate the healthy control.</p><ol class="workflow-checklist"><li id="check-diagnosis"><span>1</span><div><strong>Find the cause</strong><small>Evidence-backed investigation</small></div></li><li id="check-rehearsal"><span>2</span><div><strong>Test the options</strong><small>Isolated recovery experiments</small></div></li><li id="check-recovery"><span>3</span><div><strong>Verify the recovery</strong><small>Fresh traffic after promotion</small></div></li></ol></section><section class="panel timeline-panel"><div class="section-heading"><h2>Active lab activity</h2><span id="event-count" class="subtle">0 events</span></div><div id="timeline" class="timeline"><p class="field-help">Your incident timeline will appear here.</p></div></section><div class="scope-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 6 2v5c0 4-6 8-6 8S4 13 4 9V4z"/><path d="m7 9 2 2 4-4"/></svg><p>Experiments are local and disposable. Passing lab requests are evidence for this snapshot, not a production guarantee.</p></div></aside>
+        </div>
+      </section>
+      <section id="history-view" aria-labelledby="history-title" hidden><header class="page-header"><div><p class="eyebrow">A RECORD YOU CAN INSPECT</p><h1 id="history-title">Incident history<span>.</span></h1><p class="intro">Findings, experiments, and verified outcomes across lab episodes.</p></div><button id="refresh-history" class="button secondary" type="button">Refresh history <span aria-hidden="true">↻</span></button></header><div class="history-metrics"><div class="metric-card"><span class="metric-label">INVESTIGATIONS</span><strong id="summary-investigations">0</strong><span class="metric-foot">Saved with supporting evidence</span></div><div class="metric-card"><span class="metric-label">FIX REHEARSALS</span><strong id="summary-rehearsals">0</strong><span class="metric-foot">Isolated experiment records</span></div><div class="metric-card"><span class="metric-label">VERIFIED RECOVERIES</span><strong id="summary-recoveries">0</strong><span class="metric-foot">Passed fresh post-fix requests</span></div></div><section class="panel history-panel"><div class="section-heading"><h2>Investigations</h2><span class="subtle">Open a record to inspect its evidence</span></div><div id="history-investigations"></div></section><section class="panel history-panel"><div class="section-heading"><h2>Recovery experiments</h2><span class="subtle">Download the complete comparison</span></div><div id="history-rehearsals"></div></section></section>
+      <footer><span>IncidentLab <span class="footer-separator">/</span> Build confidence. Keep the evidence.</span><span id="episode">Connecting…</span></footer>
     </div>
   </main>
 </body>
