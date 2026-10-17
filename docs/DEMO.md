@@ -32,6 +32,20 @@ Follow with healthy and missing-evidence controls. Both should produce no
 recommended change. Restarting the app preserves history but creates a new lab
 episode; old plans remain read-only.
 
+## Adaptive experiment demonstration
+
+Start the guided demo again and open **Fix rehearsal**. Select **Adaptive ·
+offline policy**, set the experiment budget to **1**, and run. The route-only
+trial returns HTTP 500: the budget is exhausted and no promotion is offered.
+Increase the budget to **4** and rerun from the unchanged active state. The
+decision trail shows the route repair exposing a pricing exception, followed by
+a combined route repair and rollback. Only two candidates are needed. Apply the
+passing plan and inspect the five fresh verification responses.
+
+The configured **Adaptive · Mistral agent** uses the same local experiment tools
+and promotion boundary, with the model choosing its plans. Its actual choices
+may differ. [Mistral setup, evaluation, and customer-pilot plan →](MISTRAL_FDE.md)
+
 The portfolio result is expanded recovery capability on known compound faults,
 with isolation, provenance, and guarded promotion. It is not a claim that an LLM
 invented a fix, that the experiment budget is equal to the one-shot comparator,

@@ -39,6 +39,27 @@ catalogs, pricing regressions, three compound failures, and healthy or
 missing-evidence controls. The offline investigator works without an API key;
 Mistral adds bounded, read-only tool calling.
 
+## Adaptive recovery with Mistral
+
+The new planner chooses an experiment, observes its result, and uses newly
+exposed failure evidence to choose the next plan. A route repair can reveal a
+pricing exception; the next experiment can test both fixes together.
+
+![Mistral selects bounded experiments, receives fresh evidence, and leaves promotion to the operator](docs/assets/adaptive-loop.svg)
+
+In **Fix rehearsal**, select **Adaptive · offline policy** to try it without an
+API key, or **Adaptive · Mistral agent** after configuring the server key. The
+Mistral mode uses the Conversations API with local function execution. Each run
+records its experiment decisions, budget, measured outcomes, and provider usage.
+Failed or invalid model decisions never fall back to an offline success.
+
+The recorded offline adaptive run recovered **24/24 fault episodes with 33
+candidate experiments**, including nine compound cases, and preserved all six
+no-action controls. [Protocol and comparison limits →](docs/ADAPTIVE_EVALUATION.md)
+
+**Live Mistral quality is not yet measured.** Offline policy scores and mocked
+provider tests are labeled separately. [Integration, evaluation, and FDE demo →](docs/MISTRAL_FDE.md)
+
 ## How it works
 
 The investigator reads evidence. The rehearsal engine tests changes in temporary
@@ -106,7 +127,7 @@ occupied.
 </details>
 
 <details>
-<summary><strong>Enable Mistral investigation.</strong></summary>
+<summary><strong>Enable Mistral investigation and adaptive rehearsal.</strong></summary>
 
 Export `MISTRAL_API_KEY` in the server environment, then restart. For Docker
 Compose, copy `.env.example` to `.env` and fill it in locally. Keep that file
@@ -134,17 +155,21 @@ docker compose --profile test run --build --rm test
 # Reproduce the single-fix versus rehearsal comparison
 docker compose --profile eval run --build --rm eval \
   incidentlab-rehearsal-eval --split test
+
+# Compare adaptive selection and fixed-order search at the same candidate ceiling
+docker compose --profile eval run --build --rm eval \
+  incidentlab-adaptive-eval --seeds 11,23,37 --max-experiments 4
 ```
 
 Full per-case evidence is saved under `artifacts/`. The existing single-fault
 suite separately contains 7 smoke, 21 development, and 105 regression cases.
-Both suites exercise known fault families; seed splits do not establish
+These suites exercise known fault families; seed splits do not establish
 generalization to unseen incidents.
 
 [All validation commands](docs/ARCHITECTURE.md#validation-and-evaluation) ·
 [Single-fault evaluation methodology](docs/EVALUATION.md) ·
 [Project status](STATUS.md) · [Original scope decision](docs/DECISION.md)
 
-Next comparisons include an equal-budget iterative investigator, live Mistral
+Next comparisons include a stronger iterative investigator, live Mistral
 runs, and checks of response semantics beyond HTTP status. Production telemetry
 and deployment rollback are separate engineering work.

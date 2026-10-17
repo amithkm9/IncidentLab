@@ -19,13 +19,23 @@ Updated: 2026-10-17. Version: 0.2.0.
   and history, outcome filters, linked archived experiments, and mobile plan cards.
 - Visual README with actual desktop/mobile screenshots and architecture, workflow,
   and benchmark diagrams; detailed technical reference in `docs/ARCHITECTURE.md`.
-- Two reproducible benchmark runners, Docker Compose, and CI artifact generation.
+- Adaptive experiment selection with an offline reference policy and a Mistral
+  Conversations adapter, validated local tools, bounded experiments, explicit
+  abstention/failure outcomes, decision trails, and provider usage accounting.
+- Three reproducible benchmark runners, Docker Compose, and CI artifact generation.
 
 ## Verification
 
-- Final integrated Docker suite: **90 passed**, 24.90 seconds. Covers real
+- Final integrated Docker suite: **170 passed**, 33.22 seconds. Covers real
   HTTP/SQLite errors and recovery, clone isolation and cleanup, partial repairs,
-  stale/drifted plans, restart safety, persistence, and evaluator accounting.
+  stale/drifted plans, restart safety, persistence, evaluator accounting, adaptive
+  selection, invalid provider decisions, deadline/budget enforcement, and API usage.
+- Adaptive comparison: **30 cases, zero execution errors**, with a four-candidate
+  ceiling per arm. Offline adaptive policy recovered **24/24 faults**, including
+  **9/9 compound cases**, using **33 candidates**; fixed-order search recovered
+  **12/24** using 78. Both preserved **6/6 controls**. This is a known-error policy
+  versus a simple fixed prefix, not a live model score. See
+  [docs/ADAPTIVE_EVALUATION.md](docs/ADAPTIVE_EVALUATION.md).
 - Rehearsal test split: **30 episodes, zero execution errors**. On 24 actionable
   fault cases, one-shot baseline recovery was **15/24 (62.5%)**; rehearsal was
   **24/24 (100%)**, an improvement of **37.5 percentage points**.
@@ -49,6 +59,13 @@ was corrected and checked. Actual app screenshots and rendered SVG diagrams
 were inspected for the README. JavaScript syntax, static HTML/ARIA references,
 local documentation links, and Git whitespace checks passed.
 
+The adaptive upgrade was separately exercised in Safari: a one-candidate budget
+withheld promotion after the partial repair; a four-candidate ceiling found the
+two-action plan in two trials, then promotion returned five fresh HTTP 200s.
+Chrome restored that saved result and displayed its complete decision trail at
+390 pixels with wrapped plans, hypotheses, and evidence IDs. No live provider
+calls were made during browser verification.
+
 The upgraded Docker app is healthy at `http://127.0.0.1:8000`; the runtime volume
 preserves history. Use `docker compose stop app` to stop it.
 
@@ -64,7 +81,7 @@ baseline. Cases repeat ten known mechanisms across three seeds; they are not
 independent production incidents or unseen-fault generalization tests. Passing
 HTTP requests do not establish semantic correctness or production safety.
 
-Next: credentialed Mistral evaluation; an equal-budget iterative baseline;
+Next: credentialed Mistral evaluation; a stronger iterative baseline;
 nonrecoverable and ambiguous faults; semantic outcome assertions; engineer
 feedback. Production adapters and stateful distributed-service cloning are
 separate work. No production deployment, customer study, reduced-MTTR result,

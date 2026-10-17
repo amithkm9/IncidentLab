@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="420" viewBox="0 0 1000 420" role="img" aria-labelledby="title desc">
+  <title id="title">Recovery that adapts to measured experiments</title>
+  <desc id="desc">Observed evidence goes to a Mistral planner, which proposes a bounded plan for an isolated copy. Failed experiments return new observations to the planner. A passing plan needs operator approval and state checks before five fresh verification requests. The offline adaptive policy uses the same experiment boundary.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#769d88"/></marker>
+    <style>text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;fill:#172b25}.title{font-size:30px;font-weight:700}.heading{font-size:20px;font-weight:650}.body{font-size:16px;fill:#52685e}.line{fill:none;stroke:#769d88;stroke-width:2;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1000" height="420" rx="24" fill="#f7faf7"/>
+  <text class="title" x="32" y="52">Choose a test. Learn from what happened.</text>
+  <text class="body" x="32" y="82">Bounded experiments connect the agent's proposal to an observable outcome.</text>
+  <rect x="32" y="120" width="212" height="115" rx="14" fill="#fff" stroke="#d7e3db"/>
+  <text class="heading" x="52" y="155">Observed evidence</text>
+  <text class="body" x="52" y="185">Logs + metrics + health</text>
+  <text class="body" x="52" y="211">No scenario answer key</text>
+  <path class="line" d="M245 178H270"/>
+  <rect x="280" y="120" width="212" height="115" rx="14" fill="#e8f4ed" stroke="#c9dfd1"/>
+  <text class="heading" x="300" y="155">Mistral planner</text>
+  <text class="body" x="300" y="185">Choose an allowed plan</text>
+  <text class="body" x="300" y="211">Cite observed evidence</text>
+  <path class="line" d="M493 178H518"/>
+  <rect x="528" y="120" width="212" height="115" rx="14" fill="#fff" stroke="#d7e3db"/>
+  <text class="heading" x="548" y="155">Isolated experiment</text>
+  <text class="body" x="548" y="185">Same starting snapshot</text>
+  <text class="body" x="548" y="211">Fresh HTTP + error logs</text>
+  <path class="line" d="M741 178H766"/>
+  <rect x="776" y="120" width="192" height="115" rx="14" fill="#103e32"/>
+  <text x="796" y="155" font-size="20" font-weight="650" fill="#fff" style="fill:#fff">Operator approval</text>
+  <text x="796" y="185" font-size="16" style="fill:#d1e9dc">Current state checked</text>
+  <text x="796" y="211" font-size="16" style="fill:#d1e9dc">5 fresh verification calls</text>
+  <path class="line" d="M634 237V286H386V239"/>
+  <rect x="414" y="271" width="205" height="30" rx="8" fill="#f7faf7"/>
+  <text class="body" x="425" y="292">Failure reveals new evidence</text>
+  <rect x="32" y="333" width="936" height="58" rx="12" fill="#edf2e7"/>
+  <text class="body" x="52" y="357">Offline adaptive policy available for reproducible comparisons. Live Mistral quality is unmeasured.</text>
+  <text class="body" x="52" y="379">A passing tested plan is a lab result. The agent never promotes it by itself.</text>
+</svg>

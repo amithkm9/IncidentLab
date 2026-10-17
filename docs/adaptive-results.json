@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "project_version": "0.2.0",
+  "manifest": {
+    "name": "incidentlab-equal-candidate-budget-v1",
+    "scenarios": [
+      {
+        "id": "wrong_route",
+        "expected_actions": [
+          "restore_inventory_route"
+        ]
+      },
+      {
+        "id": "inventory_down",
+        "expected_actions": [
+          "restore_inventory_service"
+        ]
+      },
+      {
+        "id": "tight_timeout",
+        "expected_actions": [
+          "restore_timeout_budget"
+        ]
+      },
+      {
+        "id": "missing_database",
+        "expected_actions": [
+          "restore_catalog_path"
+        ]
+      },
+      {
+        "id": "bad_release",
+        "expected_actions": [
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "route_and_release",
+        "expected_actions": [
+          "restore_inventory_route",
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "database_and_inventory",
+        "expected_actions": [
+          "restore_catalog_path",
+          "restore_inventory_service"
+        ]
+      },
+      {
+        "id": "timeout_and_release",
+        "expected_actions": [
+          "restore_timeout_budget",
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "healthy",
+        "expected_actions": [],
+        "control": "healthy"
+      },
+      {
+        "id": "telemetry_gap",
+        "expected_actions": [],
+        "control": "telemetry_gap"
+      }
+    ],
+    "seeds": [
+      11,
+      23,
+      37
+    ],
+    "strategies": [
+      "adaptive",
+      "ordered"
+    ],
+    "max_experiments": 4,
+    "max_actions": 2,
+    "probe_count": 3,
+    "final_verification_probe_count": 5,
+    "ordered_action_order": [
+      "restore_inventory_route",
+      "restore_inventory_service",
+      "restore_timeout_budget",
+      "restore_catalog_path",
+      "rollback_checkout_release"
+    ]
+  },
+  "manifest_sha256": "a094230e2144da7c8ab2212926115fefbb873affee622e2aa8d7b0c1aad1f77c",
+  "provenance": "Offline deterministic policy comparison; NOT Mistral model performance. No model API calls.",
+  "model_strategy_selected": false,
+  "started_at": "2026-10-17T17:07:24.791127+00:00",
+  "completed_at": "2026-10-17T17:08:07.792620+00:00",
+  "elapsed_ms": 43002.59,
+  "environment": {
+    "python": "3.11.17",
+    "platform": "Linux-6.12.54-linuxkit-aarch64-with-glibc2.41",
+    "packages": {
+      "httpx": "0.28.1",
+      "pydantic": "2.14.1",
+      "fastapi": "0.143.3"
+    }
+  },
+  "limitations": [
+    "Equal candidate ceilings and requests per experiment do not imply equal total compute, evidence calls, tokens, or candidates actually used.",
+    "Fixed-order prefix search is a simple comparator, not an equal-quality iterative incident investigator.",
+    "The deterministic adaptive policy is engineered for the known fault mechanisms; its results are not model reasoning scores.",
+    "Repeated seeds cover ten known scenarios, not independent production incidents or unseen-fault generalization.",
+    "Recovery means five fresh HTTP 200 responses in this purpose-built local lab; semantics, side effects, and production safety are not established.",
+    "Recorded experiment requests exclude injection and diagnostic evidence traffic; final verification is counted separately.",
+    "Started candidate attempts may exceed completed measured experiments after execution failure; partial failed-request counts are unknown and are not invented.",
+    "Failed attempts remain in recovery/control denominators; unavailable provider usage may undercount billable usage."
+  ],
+  "summary": {
+    "episodes": 30,
+    "episode_errors": 0,
+    "fault_episodes": 24,
+    "single_fault_episodes": 15,
+    "compound_fault_episodes": 9,
+    "control_episodes": 6,
+    "telemetry_gap_controls": 3,
+    "strategies": {
+      "adaptive": {
+        "label": "Offline evidence-adaptive deterministic policy",
+        "uses_model": false,
+        "completed": 30,
+        "errors": 0,
+        "verified_recoveries": 24,
+        "recovery_rate": 1.0,
+        "single_fault_recoveries": 15,
+        "single_fault_recovery_rate": 1.0,
+        "compound_fault_recoveries": 9,
+        "compound_fault_recovery_rate": 1.0,
+        "controls_with_no_action": 6,
+        "control_no_action_rate": 1.0,
+        "telemetry_gap_abstention_rate": 1.0,
+        "candidate_experiments": 33,
+        "completed_candidate_experiments": 33,
+        "recorded_started_candidate_experiments": 33,
+        "control_experiments": 30,
+        "recorded_experiment_requests": 189,
+        "final_verification_requests": 150,
+        "median_episode_ms": 369.01,
+        "total_episode_ms": 20272.61,
+        "provider_usage": {
+          "models": [],
+          "recorded_api_calls": 0,
+          "recorded_input_tokens": 0,
+          "recorded_output_tokens": 0,
+          "estimated_cost_usd": 0,
+          "cost_complete": true,
+          "notes": [
+            "No model calls. Offline evidence-driven policy."
+          ],
+          "accounting_scope": "Recorded provider attempts and reported tokens only; failed or unreported responses may have unobserved billable usage."
+        }
+      },
+      "ordered": {
+        "label": "Offline fixed-order candidate search",
+        "uses_model": false,
+        "completed": 30,
+        "errors": 0,
+        "verified_recoveries": 12,
+        "recovery_rate": 0.5,
+        "single_fault_recoveries": 12,
+        "single_fault_recovery_rate": 0.8,
+        "compound_fault_recoveries": 0,
+        "compound_fault_recovery_rate": 0.0,
+        "controls_with_no_action": 6,
+        "control_no_action_rate": 1.0,
+        "telemetry_gap_abstention_rate": 1.0,
+        "candidate_experiments": 78,
+        "completed_candidate_experiments": 78,
+        "recorded_started_candidate_experiments": 78,
+        "control_experiments": 30,
+        "recorded_experiment_requests": 324,
+        "final_verification_requests": 150,
+        "median_episode_ms": 500.55,
+        "total_episode_ms": 22710.6,
+        "provider_usage": {
+          "models": [],
+          "recorded_api_calls": 0,
+          "recorded_input_tokens": 0,
+          "recorded_output_tokens": 0,
+          "estimated_cost_usd": 0,
+          "cost_complete": true,
+          "notes": [
+            "Offline policy; no model API calls."
+          ],
+          "accounting_scope": "Recorded provider attempts and reported tokens only; failed or unreported responses may have unobserved billable usage."
+        }
+      }
+    },
+    "offline_adaptive_vs_ordered_recovery_percentage_points": 50.0,
+    "timing_scope": "Per arm: fresh lab construction, injection, policy, application/five fresh verification requests, and cleanup. Failed attempts remain in totals; medians cover completed arms."
+  },
+  "source_artifact": {
+    "path": "artifacts/adaptive-comparison.json",
+    "sha256": "923993458bed6a6e5cfd758e25427c63d2cda87c7220eb2635570eae21125da1",
+    "scope": "Summary only; complete per-episode records remain in the generated artifact."
+  }
+}
