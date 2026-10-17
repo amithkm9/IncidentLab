@@ -6,6 +6,7 @@ the experiment runner, never to the tool interface or model context.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import random
 import sqlite3
@@ -31,18 +32,51 @@ class Scenario:
     description: str
     cause: Cause
     action: Action
+    expected_actions: tuple[Action, ...] = ()
+
+    @property
+    def fault_count(self) -> int:
+        return len(self.expected_actions)
 
 
 SCENARIOS = (
-    Scenario("wrong_route", "Configuration drift", "A deployment points checkout to a missing inventory route.", Cause.configuration, Action.route),
-    Scenario("inventory_down", "Dependency unavailable", "Inventory starts returning real HTTP 503 responses.", Cause.dependency, Action.dependency),
-    Scenario("tight_timeout", "Timeout mismatch", "The client deadline is shorter than the dependency response time.", Cause.timeout, Action.timeout),
-    Scenario("missing_database", "Catalog connection failure", "Checkout attempts to open a nonexistent database in read/write mode.", Cause.database, Action.database),
-    Scenario("bad_release", "Application regression", "A pricing regression raises an exception during checkout.", Cause.regression, Action.rollback),
+    Scenario("wrong_route", "Configuration drift", "A deployment points checkout to a missing inventory route.", Cause.configuration, Action.route, (Action.route,)),
+    Scenario("inventory_down", "Dependency unavailable", "Inventory starts returning real HTTP 503 responses.", Cause.dependency, Action.dependency, (Action.dependency,)),
+    Scenario("tight_timeout", "Timeout mismatch", "The client deadline is shorter than the dependency response time.", Cause.timeout, Action.timeout, (Action.timeout,)),
+    Scenario("missing_database", "Catalog connection failure", "Checkout attempts to open a nonexistent database in read/write mode.", Cause.database, Action.database, (Action.database,)),
+    Scenario("bad_release", "Application regression", "A pricing regression raises an exception during checkout.", Cause.regression, Action.rollback, (Action.rollback,)),
     Scenario("healthy", "Healthy control", "Requests succeed. The investigator should avoid inventing an incident.", Cause.healthy, Action.none),
     Scenario("telemetry_gap", "Missing evidence", "Checkout fails, but diagnostic telemetry is unavailable to the investigator.", Cause.unknown, Action.none),
+    Scenario("route_and_release", "Route drift masks a pricing regression", "An invalid inventory route hides a second failure in checkout pricing.", Cause.configuration, Action.route, (Action.route, Action.rollback)),
+    Scenario("database_and_inventory", "Catalog failure masks an inventory outage", "The catalog path fails before checkout can reach an unavailable inventory service.", Cause.database, Action.database, (Action.database, Action.dependency)),
+    Scenario("timeout_and_release", "A timeout masks a pricing regression", "An inventory deadline expires before checkout reaches a broken pricing release.", Cause.timeout, Action.timeout, (Action.timeout, Action.rollback)),
 )
 SCENARIO_BY_ID = {s.id: s for s in SCENARIOS}
+
+
+@dataclass(frozen=True)
+class LabSnapshot:
+    """Actual mutable state, without the scenario's identity or expected answer."""
+
+    config: dict[str, Any]
+    catalog_bytes: bytes
+    configured_catalog_bytes: bytes | None
+    catalog_is_default: bool
+    catalog_target: str
+    inventory_target: str
+    inventory_ready: bool
+    inventory_delay: float
+    telemetry_available: bool
+    seed: int
+
+    def fingerprint(self) -> str:
+        config = {**self.config, "inventory_url": self.inventory_target, "catalog_path": self.catalog_target}
+        state = {"config": config, "catalog": hashlib.sha256(self.catalog_bytes).hexdigest(),
+            "configured_catalog": (hashlib.sha256(self.configured_catalog_bytes).hexdigest()
+                if self.configured_catalog_bytes is not None else None),
+            "inventory_ready": self.inventory_ready, "inventory_delay": self.inventory_delay,
+            "telemetry_available": self.telemetry_available, "seed": self.seed}
+        return hashlib.sha256(json.dumps(state, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 class Lab:
@@ -68,8 +102,12 @@ class Lab:
         self.config: dict[str, Any] = {}
         self.servers: list[ThreadingHTTPServer] = []
         self.threads: list[threading.Thread] = []
-        self.inventory_url = self._serve(self._inventory_handler())
-        self.checkout_url = self._serve(self._checkout_handler())
+        try:
+            self.inventory_url = self._serve(self._inventory_handler())
+            self.checkout_url = self._serve(self._checkout_handler())
+        except Exception:
+            self.close()
+            raise
         self.config = self._default_config()
 
     def _serve(self, handler: type[BaseHTTPRequestHandler]) -> str:
@@ -87,6 +125,84 @@ class Lab:
             server.server_close()
         for thread in self.threads:
             thread.join(timeout=1)
+        self.servers.clear()
+        self.threads.clear()
+
+    @staticmethod
+    def _database_snapshot(path: Path) -> bytes:
+        # SQLite's backup API captures committed state, including a WAL, rather
+        # than copying a possibly incomplete database file while it is in use.
+        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as source:
+            with sqlite3.connect(":memory:") as destination:
+                source.backup(destination)
+                return destination.serialize()
+
+    @staticmethod
+    def _restore_database(data: bytes, path: Path) -> None:
+        with sqlite3.connect(":memory:") as source:
+            source.deserialize(data)
+            with sqlite3.connect(path) as destination:
+                source.backup(destination)
+
+    def snapshot(self) -> LabSnapshot:
+        """Capture current state, including partial repairs, without traffic."""
+        with self.lock:
+            config = copy.deepcopy(self.config)
+            configured_path = Path(config["catalog_path"]).resolve()
+            is_default = configured_path == self.database
+            catalog_target = (str(configured_path.relative_to(self.directory))
+                if configured_path.is_relative_to(self.directory) else str(configured_path))
+            target = urllib.parse.urlsplit(config["inventory_url"])
+            origin = urllib.parse.urlsplit(self.inventory_url)
+            if (target.scheme, target.netloc) != (origin.scheme, origin.netloc):
+                raise ValueError("Only this lab's inventory endpoint can be cloned")
+            return LabSnapshot(
+                config=config,
+                catalog_bytes=self._database_snapshot(self.database),
+                configured_catalog_bytes=(self._database_snapshot(configured_path)
+                    if not is_default and configured_path.is_file() else None),
+                catalog_is_default=is_default,
+                catalog_target=catalog_target,
+                inventory_target=urllib.parse.urlunsplit(("", "", target.path, target.query, target.fragment)),
+                inventory_ready=self.inventory_ready,
+                inventory_delay=self.inventory_delay,
+                telemetry_available=self.telemetry_available,
+                seed=self.seed,
+            )
+
+    @classmethod
+    def from_snapshot(cls, snapshot: LabSnapshot, directory: Path) -> Lab:
+        """Create independent endpoints and databases from one frozen state."""
+        if directory.exists() and any(directory.iterdir()):
+            raise ValueError("A clone requires an empty directory")
+        clone = cls(directory)
+        try:
+            with clone.lock:
+                clone._restore_database(snapshot.catalog_bytes, clone.database)
+                clone.config = copy.deepcopy(snapshot.config)
+                clone.config["inventory_url"] = clone.inventory_url + snapshot.inventory_target
+                if snapshot.catalog_is_default:
+                    catalog_path = clone.database
+                else:
+                    catalog_path = clone.directory / "configured-catalog.sqlite"
+                    if snapshot.configured_catalog_bytes is not None:
+                        clone._restore_database(snapshot.configured_catalog_bytes, catalog_path)
+                clone.config["catalog_path"] = str(catalog_path)
+                clone.inventory_ready = snapshot.inventory_ready
+                clone.inventory_delay = snapshot.inventory_delay
+                clone.telemetry_available = snapshot.telemetry_available
+                clone.seed = snapshot.seed
+                clone.scenario_id = "snapshot"
+            return clone
+        except Exception:
+            clone.close()
+            raise
+
+    def clone(self, directory: Path) -> Lab:
+        return self.from_snapshot(self.snapshot(), directory)
+
+    def fingerprint(self) -> str:
+        return self.snapshot().fingerprint()
 
     @property
     def observation_id(self) -> str:
@@ -215,16 +331,16 @@ class Lab:
             self.inventory_ready, self.inventory_delay = True, 0.0
             self.telemetry_available = scenario_id != "telemetry_gap"
             before = copy.deepcopy(self.config)
-            if scenario_id == "wrong_route":
+            if scenario_id in {"wrong_route", "route_and_release"}:
                 self.config["inventory_url"] = self.inventory_url + "/v2/stock"
-            elif scenario_id in {"inventory_down", "telemetry_gap"}:
+            if scenario_id in {"inventory_down", "telemetry_gap", "database_and_inventory"}:
                 self.inventory_ready = False
-            elif scenario_id == "tight_timeout":
+            if scenario_id in {"tight_timeout", "timeout_and_release"}:
                 self.config["timeout_ms"] = 35 + (seed % 3) * 5
                 self.inventory_delay = 0.12 + (seed % 3) * 0.01
-            elif scenario_id == "missing_database":
+            if scenario_id in {"missing_database", "database_and_inventory"}:
                 self.config["catalog_path"] = str(self.directory / f"missing-{seed}.sqlite")
-            elif scenario_id == "bad_release":
+            if scenario_id in {"bad_release", "route_and_release", "timeout_and_release"}:
                 self.config["release"] = "checkout-1.1"
             changed = {key: {"before": before[key], "after": value} for key, value in self.config.items() if before[key] != value}
             if changed:
@@ -304,25 +420,32 @@ class Lab:
         return observations
 
     def apply(self, action: Action) -> dict:
-        if action == Action.none:
-            raise ValueError("This finding has no executable remediation")
+        result = self.apply_plan([action])
+        return {"action": Action(action).value, "scope": result["scope"], "verification": result["verification"]}
+
+    def apply_plan(self, actions: list[Action] | tuple[Action, ...], probe_count: int = 5) -> dict:
+        """Apply a bounded allowlisted plan, then verify on one fresh window."""
+        plan = tuple(Action(action) for action in actions)
+        if not 1 <= len(plan) <= 2 or len(set(plan)) != len(plan) or Action.none in plan:
+            raise ValueError("A remediation plan requires one or two unique executable actions")
+        if not isinstance(probe_count, int) or isinstance(probe_count, bool) or not 1 <= probe_count <= 20:
+            raise ValueError("Probe count must be between 1 and 20")
         with self.lock:
             defaults = self._default_config()
-            if action == Action.route:
-                self.config["inventory_url"] = defaults["inventory_url"]
-            elif action == Action.dependency:
-                self.inventory_ready = True
-            elif action == Action.timeout:
-                self.config["timeout_ms"] = defaults["timeout_ms"]
-            elif action == Action.database:
-                self.config["catalog_path"] = defaults["catalog_path"]
-            elif action == Action.rollback:
-                self.config["release"] = defaults["release"]
-            else:
-                raise ValueError("Action is not allowed")
+            for action in plan:
+                if action == Action.route:
+                    self.config["inventory_url"] = defaults["inventory_url"]
+                elif action == Action.dependency:
+                    self.inventory_ready = True
+                elif action == Action.timeout:
+                    self.config["timeout_ms"] = defaults["timeout_ms"]
+                elif action == Action.database:
+                    self.config["catalog_path"] = defaults["catalog_path"]
+                elif action == Action.rollback:
+                    self.config["release"] = defaults["release"]
             # Recovery must be measured on fresh traffic, not cumulative failures.
             # In-flight requests from the previous window cannot contaminate it.
             self.window += 1
             self.logs, self.latencies, self.responses = [], [], []
-        result = self.probe(5)
-        return {"action": action.value, "scope": "disposable local lab", "verification": result}
+        result = self.probe(probe_count)
+        return {"actions": [action.value for action in plan], "scope": "disposable local lab", "verification": result}
