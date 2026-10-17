@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "project_version": "0.2.0",
+  "split": "test",
+  "provenance": "Offline deterministic engineering comparison; NOT Mistral model performance.",
+  "started_at": "2026-10-17T14:05:08.119509+00:00",
+  "completed_at": "2026-10-17T14:06:32.630932+00:00",
+  "elapsed_ms": 84511.07,
+  "manifest": {
+    "name": "incidentlab-fix-rehearsal-v1",
+    "scenarios": [
+      {
+        "id": "wrong_route",
+        "expected_actions": [
+          "restore_inventory_route"
+        ]
+      },
+      {
+        "id": "inventory_down",
+        "expected_actions": [
+          "restore_inventory_service"
+        ]
+      },
+      {
+        "id": "tight_timeout",
+        "expected_actions": [
+          "restore_timeout_budget"
+        ]
+      },
+      {
+        "id": "missing_database",
+        "expected_actions": [
+          "restore_catalog_path"
+        ]
+      },
+      {
+        "id": "bad_release",
+        "expected_actions": [
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "route_and_release",
+        "expected_actions": [
+          "restore_inventory_route",
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "database_and_inventory",
+        "expected_actions": [
+          "restore_catalog_path",
+          "restore_inventory_service"
+        ]
+      },
+      {
+        "id": "timeout_and_release",
+        "expected_actions": [
+          "restore_timeout_budget",
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "healthy",
+        "expected_actions": [],
+        "control": "healthy"
+      },
+      {
+        "id": "telemetry_gap",
+        "expected_actions": [],
+        "control": "telemetry_gap"
+      }
+    ],
+    "splits": {
+      "smoke": [
+        42
+      ],
+      "test": [
+        11,
+        23,
+        37
+      ]
+    },
+    "max_actions_per_plan": 2,
+    "rehearsal_probe_count": 3,
+    "final_verification_probe_count": 5
+  },
+  "manifest_sha256": "352eb3fce3d1888a3546c3196f2ea752ca4e32265b630f9a3427f3602d472cdd",
+  "environment": {
+    "python": "3.11.17",
+    "platform": "Linux-6.12.54-linuxkit-aarch64-with-glibc2.41",
+    "packages": {
+      "httpx": "0.28.1",
+      "pydantic": "2.14.1",
+      "fastapi": "0.143.3"
+    }
+  },
+  "summary": {
+    "episodes": 30,
+    "episode_errors": 0,
+    "fault_episodes": 24,
+    "single_fault_episodes": 15,
+    "compound_fault_episodes": 9,
+    "control_episodes": 6,
+    "healthy_controls": 3,
+    "telemetry_gap_controls": 3,
+    "baseline": {
+      "completed": 30,
+      "errors": 0,
+      "verified_recoveries": 15,
+      "recovery_rate": 0.625,
+      "single_fault_recoveries": 15,
+      "single_fault_recovery_rate": 1.0,
+      "compound_fault_recoveries": 0,
+      "compound_fault_recovery_rate": 0.0,
+      "controls_with_no_action": 6,
+      "control_no_action_rate": 1.0,
+      "healthy_no_action_rate": 1.0,
+      "telemetry_gap_abstention_rate": 1.0,
+      "median_episode_ms": 15.72,
+      "total_episode_ms": 10261.13
+    },
+    "rehearsal": {
+      "completed": 30,
+      "errors": 0,
+      "verified_recoveries": 24,
+      "recovery_rate": 1.0,
+      "single_fault_recoveries": 15,
+      "single_fault_recovery_rate": 1.0,
+      "compound_fault_recoveries": 9,
+      "compound_fault_recovery_rate": 1.0,
+      "controls_with_no_action": 6,
+      "control_no_action_rate": 1.0,
+      "healthy_no_action_rate": 1.0,
+      "telemetry_gap_abstention_rate": 1.0,
+      "median_episode_ms": 1717.4,
+      "total_episode_ms": 74038.3
+    },
+    "recovery_improvement_percentage_points": 37.5,
+    "compound_recovery_improvement_percentage_points": 100.0,
+    "candidate_experiments": 405,
+    "successful_candidate_experiments": 129,
+    "rehearsal_control_experiments": 30,
+    "rehearsal_probe_requests": 1305,
+    "model_api_calls": 0,
+    "timing_scope": "Each arm includes fault injection, decision procedure, action execution if selected, and final fresh verification; excludes lab construction. All attempts count toward total time; median covers completed arms."
+  },
+  "limitations": [
+    "Known finite fault families and an allowlist of five lab actions; exhaustive search is bounded to at most two actions.",
+    "The comparator performs one deterministic diagnosis and one action; it does not retry or receive the rehearsal's larger experiment budget.",
+    "Repeated seeds exercise the same mechanisms; they are regression cases, not independent incidents or a held-out generalization study.",
+    "Rehearsal clones this purpose-built HTTP/SQLite application; production service cloning and production-safe changes are not implemented.",
+    "Health means a small batch of HTTP 200 checkout responses; long-term reliability, semantic correctness, and nonfunctional regressions are not established.",
+    "Telemetry-gap cases intentionally require no recommendation, even though a hidden dependency fault exists.",
+    "Live request timings vary; benchmark throughput and incident-resolution time are not production performance claims."
+  ],
+  "artifact": {
+    "path": "artifacts/rehearsal-test.json",
+    "sha256": "fc525a68d254f8a6db4b6501a22e628ab1b487722c4487d60f4b06e5686da463",
+    "bytes": 613427,
+    "note": "Full per-episode findings, experiments, and verification responses are in the generated artifact, which is ignored by Git."
+  }
+}
