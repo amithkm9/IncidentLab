@@ -1,0 +1,15 @@
+name: Verify IncidentLab
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run real-HTTP integration tests
+        run: docker compose --profile test run --build --rm test
+      - name: Run baseline smoke evaluation
+        run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile eval run --build --rm eval
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baseline-smoke
+          path: artifacts/baseline-smoke.json
