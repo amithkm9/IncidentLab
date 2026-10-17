@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172725">
+  <meta name="description" content="Investigate real application failures, inspect the evidence, and verify recovery in a disposable local lab.">
+  <title>IncidentLab — Incident workspace</title>
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="IncidentLab home"><span class="brand-icon">iL</span>IncidentLab<span class="version">01</span></a>
+    <div class="workspace-label">WORKSPACE</div>
+    <div class="nav-active"><span aria-hidden="true">⌘</span> Incident investigation <span class="nav-dot"></span></div>
+    <div class="sidebar-section">
+      <p class="overline">THE WORKFLOW</p>
+      <ol class="steps">
+        <li><span>01</span><div>Introduce a failure<small>Real requests. Known conditions.</small></div></li>
+        <li><span>02</span><div>Follow the evidence<small>Logs, changes, health, runbooks.</small></div></li>
+        <li><span>03</span><div>Verify the recovery<small>Apply a fix. Test fresh requests.</small></div></li>
+      </ol>
+    </div>
+    <div class="sidebar-bottom">
+      <span class="lab-tag"><span class="dot"></span> Disposable lab</span>
+      <p>Investigations are read-only.<br>You choose when to apply a fix.</p>
+      <a href="/docs" target="_blank" rel="noopener">Explore the API <span aria-hidden="true">↗</span></a>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar"><span>Workspace <span class="slash">/</span> <strong>Checkout application</strong></span><span id="connection" class="connection">Connecting…</span></header>
+    <div class="content">
+      <header class="page-header">
+        <div><p class="eyebrow">OBSERVE → INVESTIGATE → VERIFY</p><h1>Incident workspace<span>.</span></h1><p class="intro">A working failure lab. A diagnosis you can inspect.</p></div>
+        <span class="outline-tag">LOCAL ENVIRONMENT</span>
+      </header>
+      <div id="error" class="notice error" role="alert" hidden></div>
+      <div id="activity" class="activity" role="status" aria-live="polite">Loading the lab…</div>
+
+      <section class="panel scenario-panel" aria-labelledby="scenario-title">
+        <div class="section-heading"><h2 id="scenario-title"><span class="section-number">01</span> Set the conditions</h2><span class="subtle">Reproducible fault injection</span></div>
+        <form id="scenario-form" class="scenario-form">
+          <div class="field scenario-field"><label for="scenario">Scenario</label><select id="scenario" required></select></div>
+          <div class="field seed-field"><label for="seed">Seed</label><input id="seed" type="number" min="0" max="1000000" value="42" required></div>
+          <button id="inject" class="button secondary" type="submit">Inject scenario <span aria-hidden="true">↗</span></button>
+        </form>
+        <p id="scenario-description" class="field-help"></p>
+      </section>
+
+      <section class="telemetry" aria-label="Observed checkout health">
+        <div class="health-block"><span id="health-badge" class="health-badge">Awaiting telemetry</span><p id="health-caption">Checkout request window</p><div id="request-bars" class="request-bars" aria-label="Recent HTTP responses"></div></div>
+        <div class="metric"><span>REQUESTS</span><strong id="request-count">—</strong><small>Current observation window</small></div>
+        <div class="metric"><span>ERROR RATE</span><strong id="error-rate">—</strong><small>Measured HTTP failures</small></div>
+        <div class="metric"><span>MEDIAN LATENCY</span><strong id="latency">—</strong><small>Checkout response time</small></div>
+      </section>
+
+      <div class="system-strip"><span class="overline">LAB TOPOLOGY</span><span class="system-node">◈ &nbsp;Checkout</span><span class="system-line">→</span><span class="system-node">Inventory <small>HTTP</small></span><span class="system-line">+</span><span class="system-node">Catalog <small>SQLite</small></span><button id="probe" class="text-button" type="button">Send 5 requests ↗</button></div>
+
+      <section class="panel investigation-panel" aria-labelledby="investigation-title">
+        <div class="section-heading"><h2 id="investigation-title"><span class="section-number">02</span> Investigate the incident</h2><span id="mode-badge" class="neutral-tag">OFFLINE BASELINE</span></div>
+        <form id="investigate-form">
+          <label for="question">Incident brief</label>
+          <textarea id="question" rows="2" minlength="5" maxlength="2000" required>Investigate checkout health. Identify the cause of any failure and propose an evidence-backed fix.</textarea>
+          <div class="investigation-controls"><div class="mode-field"><label for="mode">Investigator</label><select id="mode"><option value="baseline">Offline baseline · deterministic rules</option><option value="mistral">Mistral · tools + retrieval</option><option value="retrieval">Mistral · retrieval only</option><option value="prompt">Mistral · prompt only</option></select></div><button id="investigate" class="button primary" type="submit">Run investigation <span aria-hidden="true">→</span></button></div>
+          <p id="mode-note" class="field-help">The baseline uses fixed rules for these lab scenarios. It is not a Mistral model result.</p>
+        </form>
+      </section>
+
+      <div class="results-grid">
+        <section class="panel finding-panel" aria-labelledby="finding-label">
+          <div class="section-heading"><h2 id="finding-label"><span class="section-number">03</span> Finding & recovery</h2><a id="download" class="text-link" hidden>Export JSON ↗</a></div>
+          <div id="finding-empty" class="empty-state"><span class="empty-symbol" aria-hidden="true">◎</span><h3>Start with the evidence.</h3><p>Run an investigation to see a diagnosis, its supporting observations, and a proposed action.</p><div class="empty-tags"><span>Evidence citations</span><span>Verified recovery</span></div></div>
+          <div id="finding" hidden>
+            <span id="finding-cause" class="cause-tag"></span><h3 id="finding-title"></h3><p id="finding-explanation"></p>
+            <p class="overline evidence-label">SUPPORTING EVIDENCE</p><div id="citations" class="citations"></div>
+            <div class="remediation"><p class="overline">PROPOSED ACTION</p><code id="action-name"></code><p id="verification-plan"></p><button id="remediate" class="button primary" type="button">Apply fix & verify <span aria-hidden="true">↗</span></button><p class="field-help">Changes only this disposable lab. Verification sends 5 new requests.</p></div>
+            <div id="recovery" class="notice" role="status" hidden></div>
+            <details class="limitations"><summary>Scope & limitations</summary><p id="limitations"></p><p>Citation checks confirm that references exist. They do not prove that every claim follows from the evidence.</p></details>
+          </div>
+        </section>
+        <section class="panel trace-panel" aria-labelledby="trace-label"><div class="section-heading"><h2 id="trace-label">Investigation trail</h2><span id="tool-count" class="subtle">0 calls</span></div><div id="trace-empty" class="trace-placeholder"><div class="placeholder-step"><span>1</span><div><strong>Inspect live observations</strong><p>Request metrics, logs, and service health.</p></div></div><div class="placeholder-step"><span>2</span><div><strong>Connect the context</strong><p>Compare changes and relevant runbooks.</p></div></div><div class="placeholder-step"><span>3</span><div><strong>Make the finding inspectable</strong><p>Open every tool call and evidence record.</p></div></div></div><div id="traces"></div><div id="run-stats" class="run-stats" hidden></div></section>
+      </div>
+      <footer><span>IncidentLab <span class="footer-dot">/</span> Evidence before action.</span><span id="episode">No active episode</span></footer>
+    </div>
+  </main>
+</body>
+</html>
