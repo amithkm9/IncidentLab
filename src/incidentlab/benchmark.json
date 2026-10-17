@@ -1,0 +1,10 @@
+{
+  "version": "incidentlab-v1",
+  "description": "Frozen case identities for single-fault regression checks. Splits reuse known fault families. Seeds vary requests and three timeout settings, not independent unseen faults.",
+  "scenarios": ["wrong_route", "inventory_down", "tight_timeout", "missing_database", "bad_release", "healthy", "telemetry_gap"],
+  "splits": {
+    "smoke": [42],
+    "dev": [11, 23, 37],
+    "test": [101, 107, 113, 127, 131, 139, 149, 157, 163, 173, 181, 191, 199, 211, 223]
+  }
+}
