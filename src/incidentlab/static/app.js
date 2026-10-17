@@ -38,7 +38,9 @@ async function api(path, body) {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
   } catch {
-    throw new Error("Could not reach the lab. Check that the server is running, then retry.");
+    const error = new Error("Could not reach the lab. Check that the server is running, then use Refresh workspace to reconnect.");
+    error.connectionLost = true;
+    throw error;
   }
   let payload;
   try { payload = await response.json(); } catch {
@@ -66,8 +68,10 @@ function controls() {
   const plan = recommendedPlan();
   $("promote").disabled = locked || !isCurrent(state.rehearsal) || !plan?.verification?.all_healthy || !!state.rehearsal?.promotion;
   $("refresh-history").disabled = state.busy;
+  $("refresh-workspace").disabled = state.busy;
   $("return-active").disabled = state.busy;
   $("main-content").setAttribute("aria-busy", String(state.busy));
+  document.body.classList.toggle("is-busy", state.busy || !!state.status?.busy);
 }
 async function operation(message, fn) {
   if (state.busy) return;
@@ -79,6 +83,10 @@ async function operation(message, fn) {
   try {
     await fn();
   } catch (error) {
+    if (error.connectionLost) {
+      text("connection", "Connection interrupted");
+      $("connection-dot").classList.add("offline");
+    }
     text("error", error.message || "The operation failed. Refresh the workspace and try again.");
     $("error").hidden = false;
     text("activity", "Operation stopped. Review the message above before retrying.");
@@ -103,6 +111,7 @@ function switchTab(name, focus = false) {
   if (focus) $(`tab-${name}`).focus();
 }
 function switchView(view) {
+  const changed = state.view !== view;
   state.view = view;
   $("workbench-view").hidden = view !== "workbench";
   $("history-view").hidden = view !== "history";
@@ -112,6 +121,7 @@ function switchView(view) {
     else $(`nav-${name}`).removeAttribute("aria-current");
   }
   text("breadcrumb-page", view === "workbench" ? "Recovery workbench" : "Incident history");
+  if (changed) window.scrollTo({ top: 0, behavior: "auto" });
 }
 function scenarioDescription() {
   text("scenario-description", state.scenarios.find((item) => item.id === $("scenario").value)?.description || "");
@@ -129,6 +139,12 @@ function renderStatus(status) {
   $("connection-dot").classList.remove("offline");
   const failing = status.errors > 0;
   const noRequests = !status.requests;
+  const scenario = state.scenarios.find((item) => item.id === status.scenario_id);
+  text("active-scenario", scenario?.name || "Active incident");
+  text("scenario-kind", scenario?.fault_count > 1 ? "COMPOUND FAULT" : scenario?.fault_count === 1 ? "SINGLE FAULT" : "CONTROL SCENARIO");
+  $("scenario-kind").classList.toggle("amber", !!scenario?.fault_count);
+  $("incident-status-dot").classList.toggle("failing", failing);
+  $("error-metric").classList.toggle("failing", failing);
   const card = $("health-badge").closest(".health-card");
   card.classList.toggle("failing", failing);
   card.classList.toggle("unobserved", noRequests);
@@ -159,6 +175,8 @@ function renderStatus(status) {
 }
 function revealEvidence(id) {
   switchTab("evidence");
+  $("evidence-search").value = "";
+  filterEvidence();
   const target = [...document.querySelectorAll(".evidence-card")].find((node) => node.dataset.evidenceId === id);
   if (!target) return;
   target.closest("details").open = true;
@@ -183,6 +201,9 @@ function renderFinding(record) {
   $("trace-empty").hidden = !!finding;
   $("diagnosis-dot").hidden = !finding;
   $("run-stats").hidden = !finding;
+  $("evidence-toolbar").hidden = !finding;
+  $("evidence-no-matches").hidden = true;
+  $("investigate-form").hidden = state.archive;
   $("recovery").hidden = true;
   $("traces").replaceChildren();
   text("tool-count", `${result?.traces?.length || 0} CALLS`);
@@ -240,6 +261,7 @@ function renderFinding(record) {
     details.append(summary, body);
     return details;
   }));
+  filterEvidence();
   const stats = $("run-stats");
   stats.replaceChildren(el("strong", "", `${modeNames[result.mode] || result.mode} · ${duration(result.elapsed_ms)}`));
   if (result.model) stats.append(el("div", "", `${result.model} · ${number(result.input_tokens)} input / ${number(result.output_tokens)} output tokens`));
@@ -277,7 +299,26 @@ function renderRehearsal(record) {
   text("plans-passed", number(report.summary?.successful_plans ?? report.experiments?.filter((item) => item.verification.all_healthy).length));
   text("minimal-actions", controlHealthy ? "0" : report.summary?.minimal_action_count ?? plan?.actions.length ?? "—");
   text("rehearsal-duration", duration(report.elapsed_ms));
-  const experiments = [report.control, ...(report.experiments || [])].filter(Boolean);
+  renderExperiments();
+  $("promotion").hidden = !plan || !!record.promotion || state.archive;
+  const promotionDescription = $("promotion").querySelector("p");
+  promotionDescription.textContent = isCurrent(record)
+    ? "Apply the smallest passing plan to the active lab, then verify it with fresh requests."
+    : "The lab has changed since this experiment. Run a new rehearsal before promoting a plan.";
+  $("rehearsal-limitations").replaceChildren(...(report.limitations || []).map((limitation) => el("li", "", limitation)));
+  $("rehearsal-download").href = `/api/rehearsals/${record.id}`;
+  $("rehearsal-download").download = `incidentlab-rehearsal-${record.id}.json`;
+  if (record.promotion) verificationNotice($("promotion-result"), record.promotion, "Tested plan applied. Recovery verified.");
+}
+function renderExperiments() {
+  const report = state.rehearsal?.report;
+  if (!report) return;
+  const plan = recommendedPlan();
+  const all = [report.control, plan, ...(report.experiments || []).filter((item) => item.id !== plan?.id)].filter(Boolean);
+  const filter = $("plan-filter").value;
+  const experiments = all.filter((item) => filter === "all" || (filter === "passed") === !!item.verification?.all_healthy);
+  text("experiment-count", `${experiments.length} shown · ${all.length} total with control`);
+  $("plans-empty").hidden = !!experiments.length;
   $("experiments").replaceChildren(...experiments.map((experiment) => {
     const recommended = experiment.id === report.recommended_plan_id;
     const row = el("tr", recommended ? "recommended" : "");
@@ -299,15 +340,25 @@ function renderRehearsal(record) {
     row.append(labelCell, responsesCell, el("td", "", `${Number(experiment.verification?.median_latency_ms || 0).toFixed(1)} ms`), resultCell);
     return row;
   }));
-  $("promotion").hidden = !plan || !!record.promotion || state.archive;
-  const promotionDescription = $("promotion").querySelector("p");
-  promotionDescription.textContent = isCurrent(record)
-    ? "Apply the smallest passing plan to the active lab, then verify it with fresh requests."
-    : "The lab has changed since this experiment. Run a new rehearsal before promoting a plan.";
-  $("rehearsal-limitations").replaceChildren(...(report.limitations || []).map((limitation) => el("li", "", limitation)));
-  $("rehearsal-download").href = `/api/rehearsals/${record.id}`;
-  $("rehearsal-download").download = `incidentlab-rehearsal-${record.id}.json`;
-  if (record.promotion) verificationNotice($("promotion-result"), record.promotion, "Tested plan applied. Recovery verified.");
+}
+function updateEvidenceToggle() {
+  const visible = [...$("traces").querySelectorAll("details")].filter((node) => !node.hidden);
+  const allOpen = visible.length > 0 && visible.every((node) => node.open);
+  text("expand-evidence", allOpen ? "Collapse all" : "Expand all");
+  $("expand-evidence").disabled = !visible.length;
+}
+function filterEvidence() {
+  const query = $("evidence-search").value.trim().toLocaleLowerCase();
+  let matches = 0;
+  for (const trace of $("traces").querySelectorAll("details")) {
+    const toolMatch = trace.querySelector("summary").textContent.toLocaleLowerCase().includes(query);
+    const cards = [...trace.querySelectorAll(".evidence-card")];
+    for (const card of cards) card.hidden = !!query && !toolMatch && !card.textContent.toLocaleLowerCase().includes(query);
+    trace.hidden = !!query && (cards.length ? cards.every((card) => card.hidden) : !trace.textContent.toLocaleLowerCase().includes(query));
+    if (!trace.hidden) { matches++; if (query) trace.open = true; }
+  }
+  $("evidence-no-matches").hidden = !query || matches > 0 || !state.record;
+  updateEvidenceToggle();
 }
 function renderNextStep() {
   const hasFinding = !!state.record;
@@ -381,8 +432,13 @@ function emptyHistory(title, description) {
 }
 function renderHistory(history) {
   state.history = history;
-  const investigations = history?.investigations || [];
-  const rehearsals = history?.rehearsals || [];
+  const query = $("history-search").value.trim().toLocaleLowerCase();
+  const matches = (item) => {
+    const scenario = state.scenarios.find((scenario) => scenario.id === item.scenario_id)?.name || "";
+    return !query || [item.title, item.id, item.episode_id, item.scenario_id, scenario, item.mode, modeNames[item.mode], item.cause].join(" ").toLocaleLowerCase().includes(query);
+  };
+  const investigations = (history?.investigations || []).filter(matches);
+  const rehearsals = (history?.rehearsals || []).filter(matches);
   $("history-investigations").replaceChildren(...investigations.map((item) => {
     const row = el("article", "history-row");
     const main = el("div", "history-row-main");
@@ -397,7 +453,7 @@ function renderHistory(history) {
     row.append(main, actions);
     return row;
   }));
-  if (!investigations.length) $("history-investigations").append(emptyHistory("Your incident record starts here.", "Run an investigation to save its finding, tool calls, and evidence."));
+  if (!investigations.length) $("history-investigations").append(emptyHistory(query ? "No matching investigations." : "Your incident record starts here.", query ? "Try another scenario, finding, or episode ID." : "Run an investigation to save its finding, tool calls, and evidence."));
   $("history-rehearsals").replaceChildren(...rehearsals.map((item) => {
     const row = el("article", "history-row");
     const main = el("div", "history-row-main");
@@ -412,15 +468,16 @@ function renderHistory(history) {
     row.append(main, actions);
     return row;
   }));
-  if (!rehearsals.length) $("history-rehearsals").append(emptyHistory("No recovery experiments yet.", "Run a fix rehearsal to save the control, candidate plans, and measured outcomes."));
+  if (!rehearsals.length) $("history-rehearsals").append(emptyHistory(query ? "No matching experiments." : "No recovery experiments yet.", query ? "Try another scenario or episode ID." : "Run a fix rehearsal to save the control, candidate plans, and measured outcomes."));
 }
 async function openArchive(id) {
   await operation("Opening the saved investigation and its evidence…", async () => {
     const record = await api(`/api/investigations/${id}`);
+    const rehearsal = record.rehearsal_id ? await api(`/api/rehearsals/${record.rehearsal_id}`) : null;
     state.archive = true;
     $("archive-notice").hidden = false;
     renderFinding(record);
-    renderRehearsal(null);
+    renderRehearsal(rehearsal);
     renderNextStep();
     switchView("workbench");
     switchTab("diagnosis");
@@ -475,6 +532,41 @@ $("refresh-history").addEventListener("click", () => operation("Refreshing saved
   await refreshHistory();
   text("activity", "History refreshed.");
 }));
+$("refresh-workspace").addEventListener("click", () => operation("Refreshing the recovery workspace…", async () => {
+  if (!state.config) await loadConfiguration();
+  if (state.view === "history") await refreshHistory();
+  else await refreshWorkspace();
+  text("activity", "Workspace refreshed from the active lab.");
+}));
+$("plan-filter").addEventListener("change", renderExperiments);
+$("evidence-search").addEventListener("input", filterEvidence);
+$("traces").addEventListener("toggle", updateEvidenceToggle, true);
+$("expand-evidence").addEventListener("click", () => {
+  const visible = [...$("traces").querySelectorAll("details")].filter((node) => !node.hidden);
+  const shouldOpen = !visible.every((node) => node.open);
+  for (const trace of visible) trace.open = shouldOpen;
+  updateEvidenceToggle();
+});
+$("history-search").addEventListener("input", () => renderHistory(state.history));
+$("demo").addEventListener("click", () => operation("Starting a compound failure and investigating the first visible fault…", async () => {
+  $("scenario").value = "route_and_release";
+  $("seed").value = 42;
+  $("mode").value = "baseline";
+  $("question").value = "Investigate checkout health. Identify the cause of any failure and propose an evidence-backed fix.";
+  $("evidence-search").value = "";
+  $("plan-filter").value = "all";
+  scenarioDescription();
+  modeNote();
+  await api("/api/inject", { scenario_id: "route_and_release", seed: 42 });
+  await refreshWorkspace();
+  await api("/api/investigate", { mode: "baseline", question: $("question").value });
+  await refreshWorkspace();
+  switchTab("diagnosis");
+  text("activity", "Demo ready. Two faults are present. Review the first finding, then rehearse to discover the smallest complete recovery.");
+  $("finding-title").tabIndex = -1;
+  $("finding-title").focus({ preventScroll: true });
+  $("finding").scrollIntoView({ block: "nearest", behavior: "auto" });
+}));
 $("return-active").addEventListener("click", () => operation("Restoring the active incident…", async () => {
   state.archive = false;
   $("archive-notice").hidden = true;
@@ -522,10 +614,10 @@ $("rehearse").addEventListener("click", () => operation("Testing recovery plans 
   await api("/api/rehearse", { max_actions: Number($("max-actions").value), probe_count: Number($("probe-count").value) });
   await refreshWorkspace();
   switchTab("rehearsal");
-    text("activity", state.rehearsal?.report?.summary?.abstention_reason === "missing_telemetry" ? "Rehearsal withheld: diagnostic telemetry is unavailable. No candidate changes were tested or authorized." : recommendedPlan() ? "Rehearsal complete. Review the smallest passing plan before promoting it." : state.rehearsal?.report?.control?.verification?.all_healthy ? "Rehearsal complete. The no-change control is healthy; no fix is needed." : "Rehearsal complete. No tested plan recovered checkout; review the measured outcomes.");
+  text("activity", state.rehearsal?.report?.summary?.abstention_reason === "missing_telemetry" ? "Rehearsal withheld: diagnostic telemetry is unavailable. No candidate changes were tested or authorized." : recommendedPlan() ? "Rehearsal complete. Review the smallest passing plan before promoting it." : state.rehearsal?.report?.control?.verification?.all_healthy ? "Rehearsal complete. The no-change control is healthy; no fix is needed." : "Rehearsal complete. No tested plan recovered checkout; review the measured outcomes.");
   $("recommendation").tabIndex = -1;
   $("recommendation").focus({ preventScroll: true });
-  $("recommendation").scrollIntoView({ block: "nearest", behavior: "auto" });
+  $("recommendation").scrollIntoView({ block: "start", behavior: "auto" });
 }));
 $("promote").addEventListener("click", () => operation("Promoting the tested recovery plan and verifying fresh traffic in the active lab…", async () => {
   const result = await api("/api/promote", { rehearsal_id: state.rehearsal.id, plan_id: state.rehearsal.report.recommended_plan_id });
@@ -533,25 +625,36 @@ $("promote").addEventListener("click", () => operation("Promoting the tested rec
   text("activity", result.verification.all_healthy ? "Recovery verified. The tested plan passed fresh requests in the active lab." : "Plan applied, but fresh verification failed. Review the new observations before another change.");
 }));
 
-operation("Connecting to your recovery workspace…", async () => {
+async function loadConfiguration() {
   const [config, scenarios] = await Promise.all([api("/api/config"), api("/api/scenarios")]);
   state.config = config;
   state.scenarios = scenarios;
-  $("scenario").replaceChildren(...scenarios.map((scenario) => {
-    const option = el("option", "", scenario.name);
-    option.value = scenario.id;
-    return option;
+  const groups = [
+    ["Compound incidents · two faults", (scenario) => scenario.fault_count > 1],
+    ["Single-fault incidents", (scenario) => scenario.fault_count === 1],
+    ["Control scenarios", (scenario) => !scenario.fault_count],
+  ];
+  $("scenario").replaceChildren(...groups.map(([label, matches]) => {
+    const group = el("optgroup");
+    group.label = label;
+    group.append(...scenarios.filter(matches).map((scenario) => {
+      const option = el("option", "", scenario.name);
+      option.value = scenario.id;
+      return option;
+    }));
+    return group;
   }));
   for (const option of $("mode").options) {
-    if (option.value !== "baseline" && !config.mistral_configured) {
-      option.disabled = true;
-      option.textContent += " · API key required";
-    }
+    option.disabled = option.value !== "baseline" && !config.mistral_configured;
+    option.textContent = `${modeNames[option.value] || option.value}${option.disabled ? " · API key required" : ""}`;
   }
   text("app-version", `INCIDENTLAB ${config.version || ""} / LOCAL`);
   modeNote();
+}
+operation("Connecting to your recovery workspace…", async () => {
+  await loadConfiguration();
   await refreshWorkspace();
-  if (state.status?.scenario_id && scenarios.some((scenario) => scenario.id === state.status.scenario_id)) $("scenario").value = state.status.scenario_id;
+  if (state.status?.scenario_id && state.scenarios.some((scenario) => scenario.id === state.status.scenario_id)) $("scenario").value = state.status.scenario_id;
   if (state.status?.seed !== undefined) $("seed").value = state.status.seed;
   scenarioDescription();
   text("activity", state.record || state.rehearsal ? "Workspace restored. Continue from the saved finding or experiment." : "Lab ready. Start a scenario, investigate the evidence, then test a recovery plan.");
