@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .investigator import investigate
+from .adaptive import run_adaptive_rehearsal
 from .lab import Lab
 from .models import Action, InvestigateRequest
 from .rehearsal import run_rehearsal
@@ -115,11 +116,19 @@ class IncidentService:
             self.store.save_many([("investigation", record)], self._recovery_event(result, "Single fix", {"investigation_id": investigation_id}))
             return {**result, "status": self._observation()}
 
-    def rehearse(self, max_actions: int = 2, probe_count: int = 3) -> dict:
+    def rehearse(self, max_actions: int = 2, probe_count: int = 3,
+                 strategy: str = "exhaustive", max_experiments: int = 4) -> dict:
         with self.operation():
-            self.store.event(self._event("rehearsal_started", "Fix rehearsal started", "Testing isolated copies; the active lab remains unchanged."))
+            self.store.event(self._event("rehearsal_started", "Fix rehearsal started",
+                "Testing isolated copies; the active lab remains unchanged.",
+                {"strategy": strategy, "max_experiments": max_experiments if strategy != "exhaustive" else None}))
             try:
-                report = run_rehearsal(self.lab, max_actions=max_actions, probe_count=probe_count)
+                if strategy == "exhaustive":
+                    report = run_rehearsal(self.lab, max_actions=max_actions, probe_count=probe_count)
+                    report["strategy"] = "exhaustive"
+                else:
+                    report = run_adaptive_rehearsal(self.lab, strategy=strategy,
+                        max_experiments=max_experiments, max_actions=max_actions, probe_count=probe_count)
             except Exception:
                 self.store.event(self._event("rehearsal_failed", "Rehearsal did not complete", "No new plan was authorized. Retry the rehearsal."))
                 raise
@@ -195,6 +204,7 @@ class IncidentService:
         for record in self.store.recent("rehearsal", limit):
             rehearsals.append({key: record[key] for key in ("id", "created_at", "episode_id", "revision", "scenario_id")} | {
                 "summary": record["report"]["summary"], "promoted": record["promotion"] is not None,
+                "strategy": record["report"].get("strategy", "exhaustive"),
                 "recommended_plan_id": record["report"]["recommended_plan_id"],
             })
         return {"investigations": investigations, "rehearsals": rehearsals}
@@ -225,11 +235,27 @@ class IncidentService:
             rehearsal = self.read_rehearsal(record['rehearsal_id'])
             report = rehearsal['report']
             lines.extend(["## Isolated fix rehearsal", "",
+                          f"Strategy: {markdown(report.get('strategy', 'exhaustive'))}.", "",
                           f"Tested {report['summary']['tested_plans']} plans; recommended `{report['recommended_plan_id'] or 'none'}`.", "",
                           "| Plan | Actions | HTTP responses | Passed |", "| --- | --- | --- | --- |"])
             for plan in [report['control'], *report['experiments']]:
                 lines.append(f"| {markdown(plan['id'])} | {markdown(', '.join(plan['actions']) or 'No action')} | {markdown(plan['verification']['statuses'])} | {plan['verification']['all_healthy']} |")
             lines.extend(["", *[markdown(note) for note in report['limitations']], ""])
+            if report.get('decision_trace'):
+                lines.extend(["### Experiment decisions", "",
+                              "Short experiment hypotheses and measured outcomes; not private model reasoning.", ""])
+                for decision in report['decision_trace']:
+                    lines.append(f"- Step {markdown(decision['step'])}: {markdown(decision['hypothesis'])} "
+                        f"Actions: {markdown(decision['actions'])}. Outcome: {markdown(decision['outcome'])}. "
+                        f"Evidence: {markdown(decision.get('evidence_ids', []))}.")
+                lines.append("")
+            if report.get('provider_usage'):
+                usage = report['provider_usage']
+                lines.extend(["### Planner usage", "",
+                    f"Model: {markdown(usage.get('model') or 'Offline policy; no model calls')}. "
+                    f"API calls: {markdown(usage.get('api_calls', 0))}. "
+                    f"Tokens: {markdown(usage.get('input_tokens', 0))} input / {markdown(usage.get('output_tokens', 0))} output.", "",
+                    markdown(usage.get('cost_note', 'No cost estimate available.')), ""])
         remediation = record.get('remediation')
         lines.extend(["## This investigation's remediation attempt", ""])
         if remediation:

@@ -91,6 +91,8 @@ class ProbeRequest(StrictModel):
 class RehearseRequest(StrictModel):
     max_actions: int = Field(default=2, ge=1, le=2)
     probe_count: int = Field(default=3, ge=1, le=10)
+    strategy: Literal["exhaustive", "adaptive", "mistral"] = "exhaustive"
+    max_experiments: int = Field(default=4, ge=1, le=8)
 
 
 class PromoteRequest(StrictModel):

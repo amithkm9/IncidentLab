@@ -102,7 +102,15 @@ def create_app(directory: Path | None = None) -> FastAPI:
 
     @app.post("/api/rehearse")
     def rehearse(body: RehearseRequest, request: Request):
-        return request.app.state.service.rehearse(body.max_actions, body.probe_count)
+        if body.strategy == "mistral" and not os.environ.get("MISTRAL_API_KEY", "").strip():
+            raise HTTPException(503, "MISTRAL_API_KEY is not configured. Choose the offline adaptive policy or configure the server environment.")
+        try:
+            return request.app.state.service.rehearse(body.max_actions, body.probe_count,
+                strategy=body.strategy, max_experiments=body.max_experiments)
+        except ValueError as exc:
+            raise HTTPException(502, "The planner returned an invalid or unsupported experiment. No new plan was authorized.") from exc
+        except RuntimeError as exc:
+            raise HTTPException(502, str(exc)) from exc
 
     @app.post("/api/promote")
     def promote(body: PromoteRequest, request: Request):
