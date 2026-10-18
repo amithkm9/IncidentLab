@@ -1,0 +1,743 @@
+{
+  "id": "d056c19583694f6581ddd077aba5fb04",
+  "schema_version": 1,
+  "created_at": "2026-10-18T08:23:05.819734+00:00",
+  "rehearsal_id": "b8a43c58ff054fd7b072faeeb076b6f4",
+  "plan_id": "plan-02",
+  "episode_id": "afff9f69be",
+  "revision": 1,
+  "source_fingerprint": "2ecf59d4a72895eb77c3f38592bf25c53ed23f1420035bc890e4ebb67358ebbb",
+  "contract": {
+    "id": "checkout-response",
+    "version": "1.0.0",
+    "currency": "USD",
+    "expected_totals_cents": {
+      "notebook": 1200,
+      "lamp": 4500,
+      "mug": 850
+    },
+    "required_fields": [
+      "request_id",
+      "sku",
+      "total"
+    ],
+    "additional_fields": false,
+    "total_unit": "major_currency_units",
+    "maximum_total": 1000000000,
+    "monetary_precision": "exact_integer_cents",
+    "duplicate_json_keys": false,
+    "sha256": "f1ed7d7f0f1f097dd0b544ffd683a5aad9b7a0367848c06953673cb67b4690d8"
+  },
+  "actions": [
+    "restore_inventory_route",
+    "rollback_checkout_release"
+  ],
+  "probe_count": 9,
+  "trials": [
+    {
+      "id": "control",
+      "kind": "control",
+      "actions": [],
+      "removed_action": null,
+      "verification": {
+        "requests": 9,
+        "statuses": [
+          502,
+          502,
+          502,
+          502,
+          502,
+          502,
+          502,
+          502,
+          502
+        ],
+        "all_healthy": false,
+        "all_http_healthy": false,
+        "semantic_passed": false,
+        "semantic_checks": [
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          }
+        ],
+        "contract": {
+          "id": "checkout-response",
+          "version": "1.0.0",
+          "currency": "USD",
+          "expected_totals_cents": {
+            "notebook": 1200,
+            "lamp": 4500,
+            "mug": 850
+          },
+          "required_fields": [
+            "request_id",
+            "sku",
+            "total"
+          ],
+          "additional_fields": false,
+          "total_unit": "major_currency_units",
+          "maximum_total": 1000000000,
+          "monetary_precision": "exact_integer_cents",
+          "duplicate_json_keys": false,
+          "sha256": "f1ed7d7f0f1f097dd0b544ffd683a5aad9b7a0367848c06953673cb67b4690d8"
+        },
+        "median_latency_ms": 0.9
+      },
+      "error": null,
+      "elapsed_ms": 119.6
+    },
+    {
+      "id": "full-plan",
+      "kind": "full_plan",
+      "actions": [
+        "restore_inventory_route",
+        "rollback_checkout_release"
+      ],
+      "removed_action": null,
+      "verification": {
+        "requests": 9,
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "all_healthy": true,
+        "all_http_healthy": true,
+        "semantic_passed": true,
+        "semantic_checks": [
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4500,
+            "observed_sku": "lamp",
+            "request_id": "be5d1681",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1200,
+            "observed_sku": "notebook",
+            "request_id": "3749973f",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 850,
+            "observed_sku": "mug",
+            "request_id": "10bde55c",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4500,
+            "observed_sku": "lamp",
+            "request_id": "e0179ddf",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1200,
+            "observed_sku": "notebook",
+            "request_id": "64a356b8",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 850,
+            "observed_sku": "mug",
+            "request_id": "5c6612a1",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4500,
+            "observed_sku": "lamp",
+            "request_id": "acace9bb",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1200,
+            "observed_sku": "notebook",
+            "request_id": "24a17891",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 850,
+            "observed_sku": "mug",
+            "request_id": "163c03cb",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": true,
+            "violations": []
+          }
+        ],
+        "contract": {
+          "id": "checkout-response",
+          "version": "1.0.0",
+          "currency": "USD",
+          "expected_totals_cents": {
+            "notebook": 1200,
+            "lamp": 4500,
+            "mug": 850
+          },
+          "required_fields": [
+            "request_id",
+            "sku",
+            "total"
+          ],
+          "additional_fields": false,
+          "total_unit": "major_currency_units",
+          "maximum_total": 1000000000,
+          "monetary_precision": "exact_integer_cents",
+          "duplicate_json_keys": false,
+          "sha256": "f1ed7d7f0f1f097dd0b544ffd683a5aad9b7a0367848c06953673cb67b4690d8"
+        },
+        "median_latency_ms": 1.27
+      },
+      "error": null,
+      "elapsed_ms": 133.23
+    },
+    {
+      "id": "without-01",
+      "kind": "ablation",
+      "actions": [
+        "rollback_checkout_release"
+      ],
+      "removed_action": "restore_inventory_route",
+      "verification": {
+        "requests": 9,
+        "statuses": [
+          502,
+          502,
+          502,
+          502,
+          502,
+          502,
+          502,
+          502,
+          502
+        ],
+        "all_healthy": false,
+        "all_http_healthy": false,
+        "semantic_passed": false,
+        "semantic_checks": [
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": null,
+            "observed_sku": null,
+            "request_id": null,
+            "http_status": 502,
+            "evaluated": false,
+            "passed": false,
+            "violations": [
+              "http_status_not_ok"
+            ]
+          }
+        ],
+        "contract": {
+          "id": "checkout-response",
+          "version": "1.0.0",
+          "currency": "USD",
+          "expected_totals_cents": {
+            "notebook": 1200,
+            "lamp": 4500,
+            "mug": 850
+          },
+          "required_fields": [
+            "request_id",
+            "sku",
+            "total"
+          ],
+          "additional_fields": false,
+          "total_unit": "major_currency_units",
+          "maximum_total": 1000000000,
+          "monetary_precision": "exact_integer_cents",
+          "duplicate_json_keys": false,
+          "sha256": "f1ed7d7f0f1f097dd0b544ffd683a5aad9b7a0367848c06953673cb67b4690d8"
+        },
+        "median_latency_ms": 1.61
+      },
+      "error": null,
+      "elapsed_ms": 129.34
+    },
+    {
+      "id": "without-02",
+      "kind": "ablation",
+      "actions": [
+        "restore_inventory_route"
+      ],
+      "removed_action": "rollback_checkout_release",
+      "verification": {
+        "requests": 9,
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200,
+          200
+        ],
+        "all_healthy": false,
+        "all_http_healthy": true,
+        "semantic_passed": false,
+        "semantic_checks": [
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4600,
+            "observed_sku": "lamp",
+            "request_id": "00f2281f",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1300,
+            "observed_sku": "notebook",
+            "request_id": "080ad811",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 950,
+            "observed_sku": "mug",
+            "request_id": "fe559f63",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4600,
+            "observed_sku": "lamp",
+            "request_id": "d4ea77e6",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1300,
+            "observed_sku": "notebook",
+            "request_id": "305df918",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 950,
+            "observed_sku": "mug",
+            "request_id": "81794292",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4600,
+            "observed_sku": "lamp",
+            "request_id": "b29ed591",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1300,
+            "observed_sku": "notebook",
+            "request_id": "3c45a22a",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 950,
+            "observed_sku": "mug",
+            "request_id": "5fed1809",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          }
+        ],
+        "contract": {
+          "id": "checkout-response",
+          "version": "1.0.0",
+          "currency": "USD",
+          "expected_totals_cents": {
+            "notebook": 1200,
+            "lamp": 4500,
+            "mug": 850
+          },
+          "required_fields": [
+            "request_id",
+            "sku",
+            "total"
+          ],
+          "additional_fields": false,
+          "total_unit": "major_currency_units",
+          "maximum_total": 1000000000,
+          "monetary_precision": "exact_integer_cents",
+          "duplicate_json_keys": false,
+          "sha256": "f1ed7d7f0f1f097dd0b544ffd683a5aad9b7a0367848c06953673cb67b4690d8"
+        },
+        "median_latency_ms": 1.77
+      },
+      "error": null,
+      "elapsed_ms": 130.85
+    }
+  ],
+  "error": null,
+  "limitations": [
+    "This is measured counterfactual evidence for this local snapshot and plan, not a signed certificate or a production safety guarantee.",
+    "Necessity means that removing one action from this particular passing plan failed the sampled checkout contract. It does not establish global minimality or identify a unique root cause.",
+    "Nine requests per trial cover each of the three declared SKUs three times. Unspecified business rules, traffic distributions and long-term reliability are not established.",
+    "All trials begin from the same snapshot; fixes do not carry between trials. A one-action plan reuses the no-action control as its removal trial.",
+    "The content digest detects changed content when compared with a trusted digest. It authenticates neither the author nor the claims; it is not signed.",
+    "This artifact is historical evidence. Current promotion authority also requires matching episode, revision, fingerprint, contract and an unpromoted current rehearsal."
+  ],
+  "necessity": [
+    {
+      "action": "restore_inventory_route",
+      "trial_id": "without-01",
+      "necessary": true,
+      "conclusion": "necessary_in_measured_plan"
+    },
+    {
+      "action": "rollback_checkout_release",
+      "trial_id": "without-02",
+      "necessary": true,
+      "conclusion": "necessary_in_measured_plan"
+    }
+  ],
+  "summary": {
+    "planned_trials": 4,
+    "completed_trials": 4,
+    "full_plan_passed": true,
+    "control_failed": true,
+    "all_actions_necessary": true,
+    "conclusion": "supported",
+    "promotion_eligible": true
+  },
+  "budget": {
+    "max_trials": 4,
+    "planned_trials": 4,
+    "started_trials": 4,
+    "completed_trials": 4,
+    "probe_count_per_trial": 9,
+    "max_requests": 36,
+    "planned_requests": 36,
+    "completed_trial_requests": 36,
+    "provider_calls": 0,
+    "accounting_note": "Completed-request count covers completed trials; failed trials may have issued partial traffic within the overall request budget."
+  },
+  "elapsed_ms": 514.14,
+  "digest": {
+    "algorithm": "sha256",
+    "value": "47d7d160633633992634c78ec34b0cbd4c2f7efd0bc075894cfa81e258adc146",
+    "signed": false,
+    "scope": "Canonical UTF-8 JSON of this proof, sorted keys and compact separators, excluding the digest field."
+  },
+  "source_unchanged": true
+}

@@ -4,7 +4,7 @@ A service can return HTTP 200 and still charge the wrong amount. IncidentLab now
 checks both availability and the returned business data before it recommends or
 verifies a recovery plan.
 
-![A missing route returns 502; restoring it returns 200 with an incorrect thirteen-dollar price; route restoration plus rollback returns the expected twelve dollars, followed by operator approval and fresh verification](assets/semantic-recovery.svg)
+![A missing route returns 502; restoring it returns 200 with an incorrect thirteen-dollar price; route restoration plus rollback returns the expected twelve dollars, followed by operator approval and fresh verification](../assets/semantic-recovery.svg)
 
 The amounts in this diagram illustrate the implemented notebook scenario. They
 are application requirements and example responses, not benchmark scores or a
@@ -12,7 +12,7 @@ claim about live Mistral performance.
 
 ## The requirement stays independent of the bug
 
-[`contracts.py`](../src/incidentlab/contracts.py) defines the immutable
+[`contracts.py`](../../src/incidentlab/contracts.py) defines the immutable
 `checkout-response` contract, version `1.0.0`, separately from the SQLite catalog
 and deployed pricing code. Its expected totals are notebook **$12.00**, lamp
 **$45.00**, and mug **$8.50**, denominated in USD. A faulty application response
@@ -111,7 +111,7 @@ request budgets, timing, and provider usage. A live Mistral comparison additiona
 requires credentials and the explicit `--allow-paid-api` flag. Report its actual
 artifact and limitations separately from offline results.
 
-See the [recorded offline and live measurements](SEMANTIC_EVALUATION.md),
+See the [recorded offline and live measurements](../evaluation/SEMANTIC_EVALUATION.md),
 including unsuccessful model attempts and provider failures.
 
 This verifies the declared rules for a small local HTTP/SQLite application.
@@ -119,5 +119,5 @@ Undeclared business requirements, long-term reliability, external side effects,
 and production rollout safety remain outside that result. A versioned contract
 is only as useful as the requirements it accurately represents.
 
-[Project overview](../README.md) · [Adaptive recovery design](MISTRAL_FDE.md) ·
+[Project overview](../../README.md) · [Adaptive recovery design](../career/MISTRAL_FDE.md) ·
 [Architecture](ARCHITECTURE.md)

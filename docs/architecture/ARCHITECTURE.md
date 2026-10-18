@@ -6,7 +6,7 @@ to fail in observable ways so diagnosis, remediation, and verification can be
 measured end to end. Recovery requires successful HTTP responses that also
 satisfy an independently defined checkout contract.
 
-![IncidentLab architecture and isolated recovery workflow](assets/architecture.svg)
+![IncidentLab architecture and isolated recovery workflow](../assets/architecture.svg)
 
 ## Component map
 
@@ -15,18 +15,30 @@ satisfy an independently defined checkout contract.
 | `src/incidentlab/lab.py` | Checkout and inventory HTTP servers, SQLite catalog, twelve scenarios including four compound failures, snapshots, clone lifecycle, and response verification |
 | `src/incidentlab/contracts.py` | Immutable versioned checkout requirements, strict JSON/schema checks, exact monetary validation, and contract fingerprint |
 | `src/incidentlab/rehearsal.py` | Bounded intervention search, no-action control, measured selection of the smallest successful plan |
+| `src/incidentlab/proof.py` | Bounded full-plan/control/action-removal measurements, contract-consistency checks, necessity conclusions, and unsigned content digests |
 | `src/incidentlab/adaptive.py` | Evidence-driven sequential experiments, bounded Mistral Conversations tools, sanitized observations and usage accounting |
 | `src/incidentlab/investigator.py` | Deterministic offline rules and bounded Mistral adapter |
 | `src/incidentlab/tools.py` | Typed read-only tool schemas, evidence collection, lexical BM25 runbook search |
 | `src/incidentlab/service.py` | Episode lifecycle, mutation serialization, promotion guards, report generation |
 | `src/incidentlab/store.py` | Indexed SQLite history and atomic record/event transactions |
-| `src/incidentlab/api.py` | FastAPI endpoints and static interface |
-| `src/incidentlab/static/` | Buildless browser UI with no CDN dependencies |
-| `src/incidentlab/evaluate.py` | Frozen single-fault suite and trace reports |
-| `src/incidentlab/evaluate_rehearsal.py` | Single-fix versus rehearsal comparison |
-| `src/incidentlab/evaluate_adaptive.py` | Adaptive and fixed-order policies at equal candidate ceilings, with an explicitly enabled live Mistral arm |
-| `src/incidentlab/evaluate_semantic.py` | Paired HTTP-only/contract-aware acceptance on the same responses, plus independent policy recovery arms |
-| `tests/` | Real-HTTP integration tests and mocked Mistral contract tests |
+| `src/incidentlab/api.py` | FastAPI endpoints and built frontend delivery |
+| `frontend/src/` | Strict TypeScript domain types, API client, state/controller, views, and local CSS/assets |
+| `frontend/dist/` | Generated Vite production output; packaged as `incidentlab/web` in Python wheels |
+| `src/incidentlab/evaluation/baseline.py` | Frozen single-fault suite and trace reports |
+| `src/incidentlab/evaluation/rehearsal.py` | Single-fix versus rehearsal comparison |
+| `src/incidentlab/evaluation/adaptive.py` | Adaptive and fixed-order policies at equal candidate ceilings, with an explicitly enabled live Mistral arm |
+| `src/incidentlab/evaluation/semantic.py` | Paired HTTP-only/contract-aware acceptance on the same responses, plus independent policy recovery arms |
+| `src/incidentlab/evaluation/manifests/` | Versioned evaluator-owned cases, outside investigator context |
+| `tests/api/`, `tests/core/`, `tests/evaluation/` | API, core behavior, and evaluation tests, including real HTTP and mocked provider contracts |
+| `docs/` | Architecture, user/developer guides, evaluation protocols/results, and career material; see the [documentation map](../README.md) |
+
+The repository keeps the application modules together around their existing
+responsibilities. Evaluation code has its own package because it owns ground
+truth and scoring. Frontend source is separate from its generated distribution;
+Vite builds local assets without runtime CDN dependencies. The same built files
+are served from the checkout, the Python wheel, or the Docker image. Build the
+frontend before installing or packaging Python; see the
+[development workflow](../development/README.md).
 
 ## Observation and authority
 
@@ -76,9 +88,30 @@ production infrastructure. Passing the declared contract establishes only the
 sampled requirements. It does not establish undeclared business correctness,
 absence of side effects, long-term reliability, or production safety.
 
+## Counterfactual Recovery Proof
+
+A current passing recommendation can receive an optional Recovery Proof before
+promotion. The service snapshots the unchanged source and measures the full
+plan, a no-action control, and each leave-one-action-out variant. Nine requests
+per trial check all three declared products three times: two trials for a
+one-action plan, four for a two-action plan, and at most 36 requests. This step
+makes no model calls and does not modify the active lab.
+
+The report distinguishes necessity within the measured plan from redundant
+actions and incomplete or failed measurements. A redundant action is reported
+without automatically blocking an otherwise passing full plan. A failed proof
+or later failed proof attempt blocks promotion of that rehearsal until a valid
+current proof or new rehearsal is produced. Existing episode, revision,
+fingerprint, contract, and operator-approval checks still apply.
+
+The saved artifact has an unsigned SHA-256 content digest; current authority is
+recomputed separately when read or promoted. It provides inspectable local
+evidence, not global minimality or a production-safety certificate.
+[Protocol, example, and limits →](RECOVERY_PROOF.md)
+
 ## Independent business-contract verification
 
-![A route-only repair returns HTTP 200 with the wrong price; the complete plan must satisfy the versioned checkout contract](assets/semantic-recovery.svg)
+![A route-only repair returns HTTP 200 with the wrong price; the complete plan must satisfy the versioned checkout contract](../assets/semantic-recovery.svg)
 
 The immutable `checkout-response` contract, version `1.0.0`, declares required
 response fields, product identities, and exact expected prices in integer cents.
@@ -100,9 +133,11 @@ rollback is also needed. The frontend keeps transport and business failures
 distinct and does not relabel older HTTP-only records as contract-verified.
 
 [Contract design and demonstration](SEMANTIC_RECOVERY.md) ·
-[Evaluation protocol and evidence](SEMANTIC_EVALUATION.md)
+[Evaluation protocol and evidence](../evaluation/SEMANTIC_EVALUATION.md)
 
 ## Adaptive experiment selection
+
+![Observed evidence guides a bounded planner; isolated HTTP and contract checks feed new evidence back before operator-approved verification](../assets/adaptive-loop.svg)
 
 `POST /api/rehearse` accepts `strategy`: `exhaustive` (default), `adaptive`
 (offline deterministic policy), or `mistral` (Conversations agent). Both adaptive
@@ -135,7 +170,7 @@ to adaptive reports. Short hypotheses are stored; private model reasoning is
 not requested or displayed. A passing plan is smallest among the candidates
 actually tested, not globally minimal over the unsearched alternatives.
 
-[Mistral integration and FDE demonstration](MISTRAL_FDE.md)
+[Mistral integration and FDE demonstration](../career/MISTRAL_FDE.md)
 
 ## Persistence and exports
 
@@ -203,20 +238,20 @@ The original frozen manifest has 7 smoke cases, 21 development cases, and 105
 test cases. These are known single-fault regression cases, including healthy and
 missing-telemetry controls. Each run saves per-case findings, tool traces,
 recovery responses, a manifest hash, and environment metadata under `artifacts/`.
-See [evaluation methodology](EVALUATION.md) and the
-[recorded baseline results](BASELINE_RESULTS.md).
+See [evaluation methodology](../evaluation/EVALUATION.md) and the
+[recorded baseline results](../evaluation/BASELINE_RESULTS.md).
 
 The original rehearsal comparison has 30 cases: 15 single faults, nine compound
 faults, and six controls. Its recorded October 17 results use the historical
 HTTP-status recovery definition and predate silent-price scenarios. Both arms
 retain failures in metric denominators.
 Rehearsal receives a larger experiment and action budget than the one-shot
-baseline. See [the full protocol and measured results](REHEARSAL_EVALUATION.md)
+baseline. See [the full protocol and measured results](../evaluation/REHEARSAL_EVALUATION.md)
 for denominators, timing scope, resource cost, and limitations.
 
 The semantic suite separately scores HTTP-only and contract-aware gates on
 identical saved responses. Policy recovery uses independent source labs and
-fresh post-fix checks. See [SEMANTIC_EVALUATION.md](SEMANTIC_EVALUATION.md) for
+fresh post-fix checks. See [SEMANTIC_EVALUATION.md](../evaluation/SEMANTIC_EVALUATION.md) for
 that suite, the first pinned live Mistral smoke run, and retained failure records.
 Semantic/adaptive model comparisons require explicit `--allow-paid-api` opt-in.
 
@@ -240,9 +275,9 @@ compute or model reasoning, and fixed-order search is a deliberately simple
 comparator. The first live semantic smoke evaluation exposed provider errors
 and a compound-plan mistake. A follow-up with explicit full-plan context still
 recovered 1/4 faults and reported three HTTP 429 errors; both reports remain
-in the [semantic evaluation](SEMANTIC_EVALUATION.md). Broader invariants, ambiguous faults, a stronger
+in the [semantic evaluation](../evaluation/SEMANTIC_EVALUATION.md). Broader invariants, ambiguous faults, a stronger
 iterative baseline, and engineer feedback would strengthen the evidence further.
 Production telemetry adapters, richer stateful services, and deployment
 rollback require separate engineering.
 
-[Back to the project overview](../README.md)
+[Back to the project overview](../../README.md)

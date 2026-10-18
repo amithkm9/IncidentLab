@@ -21,7 +21,7 @@
   <rect x="528" y="120" width="212" height="115" rx="14" fill="#fff" stroke="#d7e3db"/>
   <text class="heading" x="548" y="155">Isolated experiment</text>
   <text class="body" x="548" y="185">Same starting snapshot</text>
-  <text class="body" x="548" y="211">Fresh HTTP + error logs</text>
+  <text class="body" x="548" y="211">HTTP + contract checks</text>
   <path class="line" d="M741 178H766"/>
   <rect x="776" y="120" width="192" height="115" rx="14" fill="#103e32"/>
   <text x="796" y="155" font-size="20" font-weight="650" fill="#fff" style="fill:#fff">Operator approval</text>
@@ -31,6 +31,6 @@
   <rect x="414" y="271" width="205" height="30" rx="8" fill="#f7faf7"/>
   <text class="body" x="425" y="292">Failure reveals new evidence</text>
   <rect x="32" y="333" width="936" height="58" rx="12" fill="#edf2e7"/>
-  <text class="body" x="52" y="357">Offline adaptive policy available for reproducible comparisons. Live Mistral quality is unmeasured.</text>
+  <text class="body" x="52" y="357">Offline policy available. Live Mistral results retain provider errors and planning failures.</text>
   <text class="body" x="52" y="379">A passing tested plan is a lab result. The agent never promotes it by itself.</text>
 </svg>

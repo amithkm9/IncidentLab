@@ -13,7 +13,7 @@ That is a design rationale, not a claim that a project guarantees hiring success
 
 ## The feature: recovery checked against the customer's requirement
 
-![A route repair returns HTTP 200 with an incorrect total; measured business-contract failure informs the next recovery experiment](assets/semantic-recovery.svg)
+![A route repair returns HTTP 200 with an incorrect total; measured business-contract failure informs the next recovery experiment](../assets/semantic-recovery.svg)
 
 The existing investigator proposes one action. The new recovery planner selects
 a plan from fresh observations, tests it in a copy, observes the newly exposed
@@ -36,7 +36,7 @@ are legitimate verification inputs, independent of the faulty pricing code.
 The `checkout-response` contract is versioned and hashed. It checks product
 identity, exact monetary totals, response fields, and strict JSON structure.
 Its metadata travels with evidence and contributes to the promotion fingerprint.
-[Contract design and implemented boundaries →](SEMANTIC_RECOVERY.md)
+[Contract design and implemented boundaries →](../architecture/SEMANTIC_RECOVERY.md)
 
 ## Where Mistral fits
 
@@ -99,7 +99,7 @@ HTTP-only checks accepted 39 trials; nine of those were false recoveries under
 the independent contract. Contract checks accepted 30. The separate offline
 adaptive arm recovered 12/12 fault episodes with 18 candidate experiments and
 preserved 6/6 no-action controls.
-[Semantic protocol, recorded results, and limits →](SEMANTIC_EVALUATION.md)
+[Semantic protocol, recorded results, and limits →](../evaluation/SEMANTIC_EVALUATION.md)
 
 The earlier adaptive-versus-ordered comparison remains useful historical
 evidence. On October 17, before semantic verification, the offline policy
@@ -107,7 +107,7 @@ recovered 24/24 fault episodes in 33 candidates; fixed-order search recovered
 12/24 in 78, and both preserved 6/6 controls. Its four-candidate ceiling prevented
 that fixed order from reaching its fifth single action or any pair. The result
 does not establish superiority over a competent engineer or another LLM.
-[Historical protocol and limitations →](ADAPTIVE_EVALUATION.md)
+[Historical protocol and limitations →](../evaluation/ADAPTIVE_EVALUATION.md)
 
 After credentials and model access are ready, explicitly enable paid model calls:
 
@@ -136,7 +136,7 @@ clarify tool effects and snapshot semantics, then measure a fresh pinned run.
 The follow-up added explicit full-plan context and safe provider diagnostics.
 It also recovered 1/4 faults and preserved both controls, but recorded three
 HTTP 429 errors. It did not demonstrate a recovery-quality improvement.
-[Retained live evidence and subsequent comparisons →](SEMANTIC_EVALUATION.md)
+[Retained live evidence and subsequent comparisons →](../evaluation/SEMANTIC_EVALUATION.md)
 
 ## A credible customer pilot
 
@@ -182,4 +182,4 @@ Current boundaries: a local HTTP/SQLite simulator, a finite action allowlist,
 known fault families, sampled HTTP and declared-contract verification, and no customer trial.
 No production recovery, reduced MTTR, or first-ever novelty claim is made.
 
-[Project overview](../README.md) · [Architecture](ARCHITECTURE.md) · [CV wording](CV.md)
+[Project overview](../../README.md) · [Architecture](../architecture/ARCHITECTURE.md) · [CV wording](CV.md)

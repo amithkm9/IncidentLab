@@ -10,12 +10,12 @@ production incident resolution, or first-ever research novelty.
 
 ```sh
 docker compose --profile eval run --build --rm eval \
-  python -m incidentlab.evaluate_rehearsal --split test \
+  python -m incidentlab.evaluation.rehearsal --split test \
   --output artifacts/rehearsal-test.json
 ```
 
 For a local Python environment, use `uv run python -m
-incidentlab.evaluate_rehearsal --split test`. `--split smoke` runs one seed per
+incidentlab.evaluation.rehearsal --split test`. `--split smoke` runs one seed per
 scenario. The JSON artifact includes the complete manifest, its SHA-256,
 dependency versions, timestamps, findings, traces, measured experiments,
 selected actions, errors, and fresh verification responses. It is generated
@@ -23,7 +23,7 @@ under `artifacts/` and ignored by Git; preserve it when sharing a result.
 
 ## Frozen cases
 
-The evaluator-owned manifest lives in `src/incidentlab/evaluate_rehearsal.py`.
+The evaluator-owned manifest lives in `src/incidentlab/evaluation/rehearsal.py`.
 Smoke uses seed 42; the regression split named `test` uses 11, 23, and 37.
 
 | Group | Mechanisms | Test episodes |
@@ -92,7 +92,7 @@ cloned or changed. Mistral performance requires a separate live model evaluation
 IncidentLab 0.2.0 completed the Docker `test` split at 14:05:08–14:06:32 UTC.
 All 30 episodes completed in both arms, with zero execution errors. The full run
 took 84.51 seconds. Machine-readable metadata and aggregates are checked in as
-[rehearsal-results.json](rehearsal-results.json).
+[rehearsal-results.json](results/rehearsal-results.json).
 
 | Measure | One-shot baseline | Fix rehearsal |
 | --- | --- | --- |

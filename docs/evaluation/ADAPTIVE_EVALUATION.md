@@ -58,7 +58,7 @@ docker compose --profile eval run --build --rm eval \
   --output artifacts/adaptive-comparison.json
 ```
 
-The [tracked summary](adaptive-results.json) records the manifest, its SHA-256,
+The [tracked summary](results/adaptive-results.json) records the manifest, its SHA-256,
 environment, aggregate results, limitations, and full-artifact digest. The
 generated `artifacts/adaptive-comparison.json` contains the per-case experiments,
 decision traces, failures, and verification evidence; timestamps and request
@@ -66,5 +66,5 @@ latencies naturally change on rerun. Failed arms remain in the denominator.
 The Docker integration suite passed **170 tests** in 33.22 seconds.
 
 For an explicitly enabled live arm and price configuration, see the
-[Mistral integration guide](MISTRAL_FDE.md). The broader-budget exhaustive versus
+[Mistral integration guide](../career/MISTRAL_FDE.md). The broader-budget exhaustive versus
 one-shot result is a separate [comparison](REHEARSAL_EVALUATION.md).

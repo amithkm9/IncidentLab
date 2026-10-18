@@ -19,6 +19,13 @@ inspectable, including when the live model fails.
   rules to the same saved responses, separately measures policy recovery, and
   retains execution failures in quality denominators.
 
+- Built counterfactual Recovery Proof with isolated full-plan, control, and
+  action-removal trials, bounded to 36 requests and zero model calls; exported
+  per-response evidence with integrity digests and stale-state promotion guards.
+- Migrated the workbench to modular strict TypeScript with typed API contracts,
+  reproducible Vite builds, packaged assets, and CI quality checks; validated
+  278 backend tests and 21 frontend tests.
+
 Choose two or three bullets that fit the role. These are implemented engineering
 contributions, not claims of production deployment or unmeasured model quality.
 
@@ -30,7 +37,7 @@ were false recoveries** under the independent business contract (23.08%).
 Contract checks accepted 30. Separately, the offline adaptive policy recovered
 **12/12 fault episodes**, preserved **6/6 no-action controls**, and used
 **18 candidate experiments**. See the full
-[semantic evaluation protocol and evidence](SEMANTIC_EVALUATION.md).
+[semantic evaluation protocol and evidence](../evaluation/SEMANTIC_EVALUATION.md).
 
 A concise results bullet:
 
@@ -66,11 +73,11 @@ scenarios. Their recovery definition was five fresh HTTP 200 responses:
 - Exhaustive rehearsal improved recovery from 15/24 (62.5%) to 24/24 (100%)
   against a one-shot rule-based baseline, with 9/9 compound cases recovered and
   6/6 no-action controls preserved. This used 405 candidates and 1,305 rehearsal
-  requests. [Protocol](REHEARSAL_EVALUATION.md)
+  requests. [Protocol](../evaluation/REHEARSAL_EVALUATION.md)
 - The offline adaptive reference recovered 24/24 faults in 33 candidates, with
   6/6 no-action controls. The fixed-order comparator had the same candidate
   ceiling but was limited by its particular ordering.
-  [Protocol](ADAPTIVE_EVALUATION.md)
+  [Protocol](../evaluation/ADAPTIVE_EVALUATION.md)
 
 These remain historical system measurements. They do not demonstrate semantic
 correctness under the new contract, live AI accuracy, or reduced production MTTR.
@@ -79,8 +86,12 @@ correctness under the new contract, live AI accuracy, or reduced production MTTR
 
 Use **Try the silent-failure demo**. Show the route-only plan returning HTTP 200
 while charging the wrong amount, the versioned contract rejecting that result,
-and the measured feedback leading to a combined plan. Promote it explicitly and
-inspect five fresh contract-verified responses.
+and the measured feedback leading to a combined plan. Run **Explain why each
+fix is needed** to show that removing rollback recreates the wrong-price response
+while removing the route repair recreates HTTP failure. Then promote explicitly
+and inspect five fresh contract-verified responses. The
+[recorded proof](../evaluation/results/recovery-proof-route-price.json) preserves
+that controlled 36-response example; it does not establish global minimality.
 
 Explain the contract's source, what it does not specify, the cost of extra
 experiments, and the first live-model failure. Then describe a customer pilot:

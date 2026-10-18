@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="730" viewBox="0 0 1000 730" role="img" aria-labelledby="title desc">
+  <title id="title">Recovery Proof: remove a fix and measure what changes</title>
+  <desc id="desc">Illustrated route and price-drift scenario. A single source snapshot supplies four independent trials. No changes fail with HTTP 502. Route restoration plus rollback passes with HTTP 200 and the expected twelve-dollar notebook price. Removing the route fix fails with HTTP 502. Removing rollback returns HTTP 200 but the wrong thirteen-dollar price. These outcomes would support necessity within this plan. Proof uses up to 36 checkout requests and zero model calls. Current-state checks and operator approval are still required, followed by five fresh verification requests.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#7d9e8e"/></marker>
+    <style>text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;fill:#172d25}.title{font-size:30px;font-weight:700}.heading{font-size:20px;font-weight:650}.body{font-size:16px;fill:#50685b}.label{font-size:16px;font-weight:650;fill:#456454}.status{font-size:20px;font-weight:700}.line{fill:none;stroke:#7d9e8e;stroke-width:2;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1000" height="730" rx="24" fill="#f6f9f5"/>
+  <text class="title" x="32" y="50">Why does the plan need both fixes?</text>
+  <text class="body" x="32" y="80">Illustrated route + price-drift case · outcomes below explain the mechanism, not benchmark results.</text>
+
+  <rect x="32" y="108" width="936" height="80" rx="14" fill="#e7f2e9" stroke="#cbded0"/>
+  <text class="heading" x="52" y="140">One source snapshot. Independent copies.</text>
+  <text class="body" x="52" y="169">Same state + versioned checkout contract. Each trial checks all three products three times.</text>
+  <path d="M500 189V207H140M500 207H860" fill="none" stroke="#7d9e8e" stroke-width="2"/>
+  <path class="line" d="M140 207V232"/><path class="line" d="M380 207V232"/>
+  <path class="line" d="M620 207V232"/><path class="line" d="M860 207V232"/>
+
+  <rect x="32" y="242" width="216" height="220" rx="14" fill="#fff" stroke="#d8e2d8"/>
+  <text class="label" x="50" y="273">CONTROL</text>
+  <text class="heading" x="50" y="306">No changes</text>
+  <text class="body" x="50" y="338">No actions applied</text>
+  <text class="status" x="50" y="380" style="fill:#8c4a2f">HTTP 502</text>
+  <text class="body" x="50" y="408">Route still broken</text>
+  <text class="label" x="50" y="439" style="fill:#8c4a2f">CONTRACT FAILS</text>
+
+  <rect x="272" y="242" width="216" height="220" rx="14" fill="#e4f2e8" stroke="#91bba1"/>
+  <text class="label" x="290" y="273">FULL PLAN</text>
+  <text class="heading" x="290" y="306">Both fixes</text>
+  <text class="body" x="290" y="338">Route + rollback</text>
+  <text class="status" x="290" y="380" style="fill:#245b3f">HTTP 200</text>
+  <text class="body" x="290" y="408">Notebook: $12 / $12</text>
+  <text class="label" x="290" y="439" style="fill:#245b3f">CONTRACT PASSES</text>
+
+  <rect x="512" y="242" width="216" height="220" rx="14" fill="#fff" stroke="#d8e2d8"/>
+  <text class="label" x="530" y="273">REMOVE ONE FIX</text>
+  <text class="heading" x="530" y="306">Without route fix</text>
+  <text class="body" x="530" y="338">Rollback only</text>
+  <text class="status" x="530" y="380" style="fill:#8c4a2f">HTTP 502</text>
+  <text class="body" x="530" y="408">Route still broken</text>
+  <text class="label" x="530" y="439" style="fill:#8c4a2f">CONTRACT FAILS</text>
+
+  <rect x="752" y="242" width="216" height="220" rx="14" fill="#fff" stroke="#d8e2d8"/>
+  <text class="label" x="770" y="273">REMOVE ONE FIX</text>
+  <text class="heading" x="770" y="306">Without rollback</text>
+  <text class="body" x="770" y="338">Route fix only</text>
+  <text class="status" x="770" y="380" style="fill:#8c4a2f">HTTP 200</text>
+  <text class="body" x="770" y="408">Notebook: $13 / $12</text>
+  <text class="label" x="770" y="439" style="fill:#8c4a2f">CONTRACT FAILS</text>
+
+  <text class="body" x="32" y="492">Prices above show observed / expected. Removing either action breaks this illustrated plan.</text>
+  <rect x="32" y="516" width="936" height="78" rx="14" fill="#eef2e4"/>
+  <text class="heading" x="52" y="548">Up to 36 checkout requests · zero model calls</text>
+  <text class="body" x="52" y="577">Evidence for this plan and snapshot. No global minimum or production safety claim.</text>
+
+  <path class="line" d="M500 596V619"/>
+  <rect x="32" y="632" width="936" height="66" rx="14" fill="#123f32"/>
+  <text x="52" y="659" font-size="19" font-weight="650" style="fill:#fff">Current-state checks → operator approval → five fresh active-lab checks</text>
+  <text x="52" y="685" font-size="16" style="fill:#d3e8da">A saved proof is evidence. Its unsigned digest does not grant authority to change the lab.</text>
+</svg>

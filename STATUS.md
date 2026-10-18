@@ -21,10 +21,16 @@ Updated: 2026-10-18. Version: 0.2.0.
   failure/abstention, bounded experiments, and provider usage accounting.
 - Promotion guarded by episode, revision, and a state fingerprint that includes
   the contract. Five fresh requests must pass HTTP and declared business rules.
+- Optional [Recovery Proof](docs/architecture/RECOVERY_PROOF.md): same-snapshot
+  full-plan/control/action-removal measurements, up to 36 checkout requests,
+  zero model calls, per-action necessity findings, unsigned digest, and separate
+  current-authority checks. Existing failed proofs block rehearsal promotion.
 - Indexed SQLite history, atomic record/event transactions, persistent audit
   timelines, legacy JSON import, and JSON/Markdown exports.
 - Responsive workbench with **Try the silent-failure demo**, expected-versus-observed
   checks, searchable evidence/history, outcome filters, and archived records.
+- Strict TypeScript/Vite frontend source with a separate generated production
+  build; evaluation modules, tests, and documentation grouped by responsibility.
 - Pictorial documentation with actual app captures, architecture and recovery
   diagrams, four evaluation runners, Docker Compose, and CI artifact generation.
 
@@ -39,7 +45,7 @@ The separate offline adaptive recovery arm restored **12/12 faults**, preserved
 **6/6 no-action controls**, and used **18 candidate experiments**. These are
 controlled known-scenario results; the paired acceptance test and policy
 recovery test answer different questions. See
-[docs/SEMANTIC_EVALUATION.md](docs/SEMANTIC_EVALUATION.md) for denominators,
+[the semantic evaluation](docs/evaluation/SEMANTIC_EVALUATION.md) for denominators,
 protocol, and recorded evidence.
 
 The first live smoke run, pinned to `mistral-small-2603`, recovered **1/4 fault
@@ -55,31 +61,66 @@ Credentials are not part of tracked source or benchmark summaries.
 
 ## Validation
 
-The integrated Docker suite passed **251 tests in 38.94 seconds**, including
-the semantic contracts, real HTTP flows, provider-error metadata, and full-plan
-experiment context. JavaScript syntax and provider-diagnostic bounds were also
-checked after the responsive UI changes.
+The current Docker suite passed **278 tests in 45.45 seconds**, with warnings
+promoted to errors. Coverage includes real HTTP flows, contracts, proof omissions,
+incomplete measurements, stale authority, export integrity, promotion guards,
+and frontend asset delivery. The TypeScript frontend passed strict type checking,
+ESLint, Prettier, **21 Vitest tests**, and its production build on Node 24 in Docker.
+Ruff lint and formatting checks passed for all 44 Python source/test files.
+A same-origin POST through the Vite development proxy also completed a verified
+checkout request; the temporary development server was stopped after the check.
 
-The current contract-aware dashboard screenshot was captured from the running
-app and visually inspected:
-[semantic-console.png](docs/assets/semantic-console.png). The new semantic
-recovery diagram was rendered and checked for label fit. The earlier desktop
-and mobile screenshots document the previous UI state.
+The Starlette TestClient warning came from its legacy `httpx` fallback. The
+locked development dependency now supplies `httpx2`; runtime Mistral clients
+retain `httpx`. Enabling warnings-as-errors exposed unclosed HTTP error response
+streams in dependency, probe, and health checks. Those paths and a test-owned
+response now close explicitly. A retained-response regression checks immediate
+closure; 31 focused tests also passed with allocation tracing enabled. No warning
+suppression was added.
 
-The current browser walkthrough verified a route-only repair returning five
-HTTP 200 responses while all five price checks failed. A fresh compound rehearsal
-then measured the failed route-only plan and passing combined plan. Safari
-confirmed promotion and five fresh HTTP/price/SKU passes.
+All four reorganized evaluation commands completed their offline smoke runs:
 
-Mobile sizing was hardened for shrinking grid tracks and wrapped controls. The
-new Chrome390px capture showed clipping and stale rendering even across window
-changes; the final mobile visual check is inconclusive. The old mobile capture
-is explicitly historical and is not evidence of this upgrade's mobile layout.
+| Runner | Measured smoke result |
+| --- | --- |
+| Baseline | 7/7 completed; five actionable cases recovered and two controls preserved |
+| Rehearsal | 8/8 faults recovered versus 5/8 single-fix baseline; both preserved 2/2 controls |
+| Adaptive | 8/8 faults with 11 candidates versus 4/8 with 26 fixed-order candidates; both preserved 2/2 controls |
+| Semantic | 24 paired trials; three of 13 HTTP-only acceptances violated the contract; adaptive recovered 4/4 faults and preserved 2/2 controls |
 
-The host shell blocks local HTTP binding, so real-HTTP execution runs in Docker.
-An upstream Starlette warning concerns the httpx TestClient adapter. Mocked
-provider tests validate integration contracts and failure handling; actual live
-quality is reported separately above.
+These are regression checks of known local scenarios, with no provider calls.
+Smoke reports are generated under `artifacts/`; the earlier full evaluation
+records above remain unchanged. Timings from concurrently run smoke commands
+are not used as comparative performance claims.
+
+The Safari walkthrough exercised the compiled TypeScript app through demo,
+adaptive rehearsal, proof, expanded response details, and explicit promotion.
+The [saved proof](docs/evaluation/results/recovery-proof-route-price.json)
+contains four trials and 36 responses: the combined plan passed, omitting the
+route fix failed availability, and omitting rollback produced nine HTTP 200s
+with nine incorrect prices. Export integrity passed; the active source stayed
+unchanged until promotion. The UI then reported five fresh contract passes and
+marked the proof read-only historical evidence.
+
+The desktop proof layout and the Chrome **390 × 844** workbench were visually
+inspected. The mobile header, navigation, controls, and health cards fit; the
+inspected Chrome console had zero messages. This is a browser-emulation spot
+check, not a complete mobile-device or accessibility audit. The retained
+[dashboard capture](docs/assets/semantic-console.png) predates this migration;
+[Recovery Proof's diagram](docs/assets/recovery-proof.svg) documents the new flow.
+The earlier rehearsal capture remains explicitly historical.
+
+Wheel and source-distribution builds passed. The wheel contains the compiled
+frontend, evaluation modules, and benchmark manifest; an extracted-wheel
+TestClient check served its bundled index and all referenced assets. Final
+archive inspection found no legacy JavaScript frontend, environment file,
+node_modules, or runtime data. Publishable source and generated frontend were
+scanned for the configured key; none contained it. JSON, SVG, and relative
+documentation links were checked.
+
+The host shell restricts loopback HTTP, so integration execution uses Docker.
+Mocked provider tests validate integration contracts and failure handling;
+actual live quality remains the separately reported results above. This pass
+made no additional paid model calls.
 
 ## Historical benchmark evidence · October 17, 2026
 
@@ -89,14 +130,14 @@ scenarios:
 
 - Original baseline: 105/105 correct causes/actions, 75/75 HTTP-verified
   recoveries, and 30/30 no-action controls.
-  [Baseline evidence](docs/BASELINE_RESULTS.md)
+  [Baseline evidence](docs/evaluation/BASELINE_RESULTS.md)
 - Exhaustive rehearsal: 24/24 recoveries versus 15/24 for one-shot remediation,
   including 9/9 versus 0/9 compound recoveries; both preserved 6/6 controls.
   Rehearsal used 405 candidates and 1,305 experiment requests.
-  [Rehearsal evidence](docs/REHEARSAL_EVALUATION.md)
+  [Rehearsal evidence](docs/evaluation/REHEARSAL_EVALUATION.md)
 - Offline adaptive policy: 24/24 faults recovered in 33 candidates versus 12/24
   in 78 candidates for a simple fixed order; both preserved 6/6 controls.
-  [Adaptive evidence](docs/ADAPTIVE_EVALUATION.md)
+  [Adaptive evidence](docs/evaluation/ADAPTIVE_EVALUATION.md)
 
 The earlier integrated suite passed 170 tests. These historical measurements
 remain useful regression records and must not be relabeled as current semantic
@@ -115,4 +156,4 @@ and engineer feedback. Production telemetry adapters and distributed-service
 cloning require separate work. No customer study, production deployment,
 reduced-MTTR result, or first-ever novelty claim is made.
 
-[CV wording](docs/CV.md) · [Customer-pilot approach](docs/MISTRAL_FDE.md)
+[CV wording](docs/career/CV.md) · [Customer-pilot approach](docs/career/MISTRAL_FDE.md)

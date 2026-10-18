@@ -11,7 +11,7 @@ reliability or evidence of general incident reasoning. The useful result is that
 incorrect business outcomes remain visible even when a model or an HTTP-only
 check would miss them.
 
-![Actual dashboard showing HTTP error rate zero but five incorrect checkout prices](assets/semantic-console.png)
+![Actual dashboard showing HTTP error rate zero but five incorrect checkout prices](../assets/semantic-console.png)
 
 ## Two questions, two measurements
 
@@ -58,7 +58,7 @@ it is not evidence that rejecting more plans in general is better. The contract
 is itself a declared oracle, so this comparison does not independently establish
 that the requirement is correct or complete.
 
-[Measured offline export](semantic-offline-results.json) includes the manifest,
+[Measured offline export](results/semantic-offline-results.json) includes the manifest,
 environment, timestamps, compact decisions, and counterexamples. Full generated
 traces remain in the ignored `artifacts/` directory.
 
@@ -103,8 +103,8 @@ neither incomplete HTTP-200 repair received promotion authority. The prompt and
 tool-effect descriptions still need evaluation on a wider case set and across
 models before a stronger live-model claim is justified.
 
-See the [initial live export](semantic-mistral-initial-results.json) and
-[follow-up export](semantic-mistral-followup-results.json). Token totals cover
+See the [initial live export](results/semantic-mistral-initial-results.json) and
+[follow-up export](results/semantic-mistral-followup-results.json). Token totals cover
 reported responses only; failed requests may have unobserved usage. Dollar cost
 is unknown because prices were not configured. The table is not a billing
 ledger, and these two runs are not independent estimates of general accuracy.
@@ -144,5 +144,5 @@ Keep the failed artifact. Model availability, provider limits, nondeterminism,
 and future prompt changes can change the outcome. The two published live
 exports intentionally preserve both implementation iterations.
 
-[Contract design](SEMANTIC_RECOVERY.md) · [FDE case study](MISTRAL_FDE.md) ·
-[Project overview](../README.md)
+[Contract design](../architecture/SEMANTIC_RECOVERY.md) · [FDE case study](../career/MISTRAL_FDE.md) ·
+[Project overview](../../README.md)

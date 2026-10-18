@@ -26,13 +26,14 @@ Click **Try the silent-failure demo**, then run **Adaptive · offline policy** i
 **Fix rehearsal**. Inspect the failed price check, compare the combined route
 repair and release rollback, then approve the measured plan. Five fresh requests
 must pass both HTTP and business-contract checks.
-[Follow the demo →](docs/DEMO.md) · [Understand semantic recovery →](docs/SEMANTIC_RECOVERY.md)
+[Follow the demo →](docs/guides/DEMO.md) · [Understand semantic recovery →](docs/architecture/SEMANTIC_RECOVERY.md)
 
 | What you can do | What makes it useful |
 | --- | --- |
 | Follow a diagnosis into its evidence | Inspect the actual logs, health responses, metrics, and changes behind a finding. |
 | Detect a false recovery | Compare returned totals and product IDs with an independent, versioned contract—even when HTTP succeeds. |
 | Compare fixes before changing the lab | Use bounded adaptive experiments or compare all five individual fixes and ten pairs against a no-action control. |
+| Test what each fix contributes | Run Recovery Proof: replay the full plan, remove one action at a time, and inspect which contract checks fail. |
 | Approve a measured recovery plan | Promote a passing tested plan only while its source state and contract are still current. |
 | Keep an inspectable incident record | Reopen SQLite-backed history and export evidence, experiments, and verification as JSON or Markdown. |
 
@@ -40,6 +41,28 @@ Twelve scenarios cover route drift, dependency outages, tight timeouts, missing
 catalogs, explicit and silent pricing regressions, **four compound failures**,
 and healthy or missing-evidence controls. The offline workflow needs no API key;
 Mistral adds bounded investigation and adaptive experiment selection.
+
+## Recovery Proof: what happens if a fix is removed?
+
+After a passing rehearsal, select **Explain why each fix is needed**. Recovery
+Proof measures the full plan, an unchanged control, and each action-removal
+variant from the same snapshot. It uses at most **36 checkout requests** and
+**zero model calls**; the active lab stays unchanged.
+
+![Illustrated Recovery Proof comparing a full route-and-rollback plan with no changes and each action removed, using isolated copies and independent contract checks](docs/assets/recovery-proof.svg)
+
+In the [recorded guided run](docs/evaluation/results/recovery-proof-route-price.json),
+four trials completed **36 responses** with the source unchanged. The full plan
+passed; removing the route fix returned HTTP 502, while removing rollback
+returned nine HTTP 200 responses with nine incorrect prices. No model calls
+were made. This is one measured local example.
+
+The result can support an action's necessity within this measured plan, expose
+a redundant action, or fail to support promotion. It does not establish a global
+minimum or production safety. The exported digest is unsigned, and the server
+rechecks current authority before any promotion. Proof is optional; once run,
+its failure cannot be bypassed on the same rehearsal.
+[Measurement, integrity, and authority boundaries →](docs/architecture/RECOVERY_PROOF.md)
 
 ## Adaptive recovery with Mistral
 
@@ -57,7 +80,7 @@ Failed or invalid model decisions never fall back to an offline success.
 
 The independent verifier decides whether a measured plan passed. The model can
 choose an allowed experiment or abstain; it cannot waive contract failures or
-promote a change. [Integration, evaluation, and customer-pilot approach →](docs/MISTRAL_FDE.md)
+promote a change. [Integration, evaluation, and customer-pilot approach →](docs/career/MISTRAL_FDE.md)
 
 ## How it works
 
@@ -67,8 +90,8 @@ the active lab.
 
 ![Architecture showing the browser, FastAPI, read-only investigator, real HTTP and SQLite lab, isolated fix rehearsal, guarded promotion, and persistent history](docs/assets/architecture.svg)
 
-**Stack:** Python 3.11+ · FastAPI · SQLite · real HTTP services · HTML / CSS /
-JavaScript · BM25 runbooks · optional Mistral API.
+**Stack:** Python 3.11+ · FastAPI · SQLite · real HTTP services · strict
+TypeScript / Vite / CSS · BM25 runbooks · optional Mistral API.
 
 The lab is a purpose-built local application. Each rehearsal copies its current
 state, including partial repairs; it does not use the injected scenario label to
@@ -77,11 +100,11 @@ promotion, the API checks the episode, revision, and a SHA-256 state fingerprint
 that includes the contract definition. Fresh verification checks both HTTP
 availability and the declared business rules.
 
-[Architecture, component map, and design boundaries →](docs/ARCHITECTURE.md)
+[Architecture, component map, and design boundaries →](docs/architecture/ARCHITECTURE.md)
 
 ## Measured results
 
-The new [semantic-recovery evaluation](docs/SEMANTIC_EVALUATION.md) scores
+The new [semantic-recovery evaluation](docs/evaluation/SEMANTIC_EVALUATION.md) scores
 HTTP-only and contract-aware acceptance against the **same recorded responses**,
 then separately measures selected recovery plans in independent labs. Failed
 cases stay in the denominators, with decisions, errors, requests, latency, and
@@ -100,7 +123,7 @@ errors**. A compound case exposed a planning error: the model omitted a repair
 needed by the original snapshot. A follow-up with clearer experiment context also recovered **1/4 faults** and
 recorded **three HTTP 429 failures**. Both runs are retained; no live quality
 improvement or production readiness is claimed.
-[Run details and subsequent evidence →](docs/SEMANTIC_EVALUATION.md)
+[Run details and subsequent evidence →](docs/evaluation/SEMANTIC_EVALUATION.md)
 
 <details>
 <summary><strong>Historical offline results · October 17, 2026 · HTTP-status recovery</strong></summary>
@@ -125,11 +148,11 @@ artifacts predate business-contract checks and the two silent-price scenarios.
 A separate historical offline adaptive run recovered **24/24 fault episodes
 with 33 candidates**, including nine compound cases, and preserved **6/6
 no-action controls**. It tested an engineered known-error policy against a simple
-fixed-order comparator. [Adaptive protocol and limits →](docs/ADAPTIVE_EVALUATION.md)
+fixed-order comparator. [Adaptive protocol and limits →](docs/evaluation/ADAPTIVE_EVALUATION.md)
 
-[Protocol and recorded results](docs/REHEARSAL_EVALUATION.md) ·
-[Machine-readable summary](docs/rehearsal-results.json) ·
-[CV-ready engineering claims](docs/CV.md)
+[Protocol and recorded results](docs/evaluation/REHEARSAL_EVALUATION.md) ·
+[Machine-readable summary](docs/evaluation/results/rehearsal-results.json) ·
+[CV-ready engineering claims](docs/career/CV.md)
 
 </details>
 
@@ -148,18 +171,23 @@ Stop the app with `docker compose stop app`. The named `lab-runtime` volume
 preserves saved history across restarts.
 
 <details>
-<summary><strong>Prefer Python? Run with uv.</strong></summary>
+<summary><strong>Develop locally with Python, TypeScript, and uv.</strong></summary>
 
-Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.11+, Node.js 24+, npm, and [uv](https://docs.astral.sh/uv/).
 
 ```sh
-uv sync --frozen --extra dev
+make bootstrap
 uv run incidentlab
 ```
 
 The process must be able to bind loopback HTTP ports. One app process owns one
 lab, so run a single worker. Use `uv run incidentlab --port 8001` if port 8000 is
 occupied.
+
+Bootstrap installs the locked frontend dependencies, builds `frontend/dist`,
+then installs the Python package. The build is also included in Python wheels
+and Docker images. See the [development guide](docs/development/README.md) for
+the Vite development server and quality checks.
 
 </details>
 
@@ -175,7 +203,7 @@ version for repeatable comparisons. Credentials stay on the server; the browser
 receives only a configured/not-configured flag. Live model use makes paid API
 calls. Live smoke results and offline results are reported separately above.
 
-[Investigation modes, budgets, and cost accounting →](docs/ARCHITECTURE.md#investigation-modes)
+[Investigation modes, budgets, and cost accounting →](docs/architecture/ARCHITECTURE.md#investigation-modes)
 
 </details>
 
@@ -203,9 +231,11 @@ suite separately contains 7 smoke, 21 development, and 105 regression cases.
 These suites exercise known fault families; seed splits do not establish
 generalization to unseen incidents.
 
-[All validation commands](docs/ARCHITECTURE.md#validation-and-evaluation) ·
-[Single-fault evaluation methodology](docs/EVALUATION.md) ·
-[Project status](STATUS.md) · [Original scope decision](docs/DECISION.md)
+[All validation commands](docs/architecture/ARCHITECTURE.md#validation-and-evaluation) ·
+[Single-fault evaluation methodology](docs/evaluation/EVALUATION.md) ·
+[Documentation map](docs/README.md) ·
+[Contributing](CONTRIBUTING.md) ·
+[Project status](STATUS.md) · [Original scope decision](docs/architecture/DECISION.md)
 
 Next work targets the observed live-model failure modes, a stronger iterative
 baseline, additional business invariants, and engineer feedback. Production
