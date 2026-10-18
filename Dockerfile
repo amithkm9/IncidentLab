@@ -6,10 +6,11 @@ COPY frontend ./
 RUN npm run check && npm run build
 
 FROM python:3.11-slim AS base
+COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /uvx /usr/local/bin/
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 INCIDENTLAB_DATA_DIR=/app/runtime
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
-RUN pip install --no-cache-dir uv==0.9.5 && uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project
 COPY src ./src
 COPY --from=frontend /web/dist ./frontend/dist
 RUN uv sync --frozen --no-dev --no-editable
