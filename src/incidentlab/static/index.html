@@ -60,7 +60,7 @@
       <section id="workbench-view" aria-labelledby="page-title">
         <header class="page-header">
           <div><p class="eyebrow"><span class="eyebrow-line"></span> THE INCIDENT RECOVERY LAB</p><h1 id="page-title">Recovery workbench<span>.</span></h1><p class="intro">Understand the failure. Rehearse the fix. Prove the recovery.</p></div>
-          <div class="header-action"><button id="demo" class="button primary" data-mutates type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 9 6-9 6z"/></svg>Start guided demo</button><span>New incident · offline · no API key</span></div>
+          <div class="header-action"><button id="demo" class="button primary" data-mutates type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 9 6-9 6z"/></svg>Try the silent-failure demo</button><span>Route fault + incorrect totals · offline</span></div>
         </header>
         <div id="archive-notice" class="notice archive-notice" hidden>
           <div><strong>Archived investigation · read-only</strong><span>Health and activity show the active lab. The finding and experiment below belong to this saved record.</span></div>
@@ -72,13 +72,19 @@
         </div>
         <section class="metrics-grid" aria-label="Observed checkout health">
           <div class="metric-card health-card"><div class="metric-label">Checkout health <span id="health-icon" class="status-dot"></span></div><strong id="health-badge">Connecting</strong><div class="health-detail"><span id="health-caption">Waiting for observations</span><div id="request-bars" class="request-bars" aria-label="Recent HTTP responses"></div></div></div>
-          <div class="metric-card" id="error-metric"><span class="metric-label">Error rate</span><strong id="error-rate">—</strong><span class="metric-foot"><span id="error-count">—</span> failed requests</span></div>
+          <div class="metric-card" id="error-metric"><span class="metric-label">HTTP error rate</span><strong id="error-rate">—</strong><span class="metric-foot"><span id="error-count">—</span> transport failures</span></div>
           <div class="metric-card"><span class="metric-label">Median latency</span><strong id="latency">—</strong><span class="metric-foot">Measured checkout response</span></div>
           <div class="metric-card"><span class="metric-label">Requests observed</span><strong id="request-count">—</strong><span id="window-label" class="metric-foot">Current observation window</span></div>
         </section>
+        <section id="contract-health" class="contract-health" aria-labelledby="contract-health-title">
+          <div class="contract-health-heading"><div><p class="overline">BEYOND HTTP 200</p><h2 id="contract-health-title">Check the business outcome</h2><p id="contract-health-summary">Response checks compare returned prices and product IDs with the expected contract.</p></div><span id="contract-health-badge" class="tag">WAITING FOR OBSERVATIONS</span></div>
+          <div id="contract-mismatch-preview" class="contract-mismatch-preview" hidden></div>
+          <details id="contract-health-details" class="contract-details" hidden><summary>Inspect recent price and product checks</summary><div id="contract-health-checks" class="contract-check-list"></div></details>
+          <p id="contract-version" class="contract-version" hidden></p>
+        </section>
         <div class="environment-grid">
           <section class="panel scenario-panel" aria-labelledby="scenario-title">
-            <div class="section-heading"><div><span class="eyebrow">01 / SET UP</span><h2 id="scenario-title">Choose your failure</h2></div><span class="tag">10 SCENARIOS</span></div>
+            <div class="section-heading"><div><span class="eyebrow">01 / SET UP</span><h2 id="scenario-title">Choose your failure</h2></div><span id="scenario-count" class="tag">SCENARIOS</span></div>
             <form id="scenario-form" class="scenario-form">
               <div class="field scenario-field"><label for="scenario">Fault scenario</label><select id="scenario" data-mutates required></select></div>
               <div class="field seed-field"><label for="seed">Seed</label><input id="seed" data-mutates type="number" min="0" max="1000000" value="42" required></div>
@@ -140,16 +146,16 @@
               <p id="rehearsal-scope-note" class="field-help">Up to 15 candidate plans + a no-change control. Your active lab stays unchanged.</p>
               <div id="rehearsal-empty" class="rehearsal-empty">
                 <div class="experiment-diagram" aria-hidden="true"><div class="experiment-source"><span>SNAPSHOT</span><strong>Current incident</strong></div><div class="experiment-branches"><span>No change</span><span>One fix</span><span>Two fixes</span></div><div class="experiment-proof"><span>FRESH REQUESTS</span><strong>Compare outcomes</strong></div></div>
-                <h3>One symptom. More than one fault?</h3><p>A route failure can hide a pricing regression. Testing combinations reveals which plan restores checkout.</p>
+                <h3>HTTP 200. But was the checkout correct?</h3><p>A repaired route can reveal silently incorrect totals. Recovery requires successful requests and valid price and product checks.</p>
               </div>
               <div id="rehearsal-result" hidden>
                 <div id="recommendation" class="recommendation"></div>
                 <div id="rehearsal-run-meta" class="rehearsal-run-meta"></div>
                 <div class="rehearsal-stats"><div><strong id="plans-tested">—</strong><span>plans tested</span></div><div><strong id="plans-passed">—</strong><span>plans passed</span></div><div><strong id="minimal-actions">—</strong><span>actions in plan</span></div><div><strong id="rehearsal-duration">—</strong><span>elapsed time</span></div></div>
-                <div id="promotion" class="promotion"><div><strong>Ready to verify in the active lab?</strong><p>Apply the smallest passing tested plan, then send five fresh requests.</p></div><button id="promote" class="button primary" data-mutates type="button">Apply plan & verify <span aria-hidden="true">→</span></button></div>
+                <div id="promotion" class="promotion"><div><strong>Ready to verify in the active lab?</strong><p>Apply the smallest passing tested plan, then check five fresh responses for availability and business correctness.</p></div><button id="promote" class="button primary" data-mutates type="button">Apply plan & verify <span aria-hidden="true">→</span></button></div>
                 <div id="promotion-result" class="notice" role="status" hidden></div>
                 <div class="comparison-heading"><div><h3>Measured outcomes</h3><span id="experiment-count" class="subtle" aria-live="polite">Control + candidate plans</span></div><div class="compact-field"><label for="plan-filter">Show</label><select id="plan-filter"><option value="all">All outcomes</option><option value="passed">Passed</option><option value="failed">Failed</option></select></div></div>
-                <div class="experiment-table-wrap"><table class="experiment-table"><caption class="sr-only">Recovery plans compared using fresh HTTP requests in isolated lab copies</caption><thead><tr><th scope="col">Recovery plan</th><th scope="col">HTTP responses</th><th scope="col">Median</th><th scope="col">Result</th></tr></thead><tbody id="experiments"></tbody></table><p id="plans-empty" class="filter-empty" hidden>No plans match this outcome.</p></div>
+                <div class="experiment-table-wrap"><table class="experiment-table"><caption class="sr-only">Recovery plans compared using HTTP availability and business contract checks in isolated lab copies</caption><thead><tr><th scope="col">Recovery plan & business checks</th><th scope="col">HTTP responses</th><th scope="col">Median</th><th scope="col">Recovery</th></tr></thead><tbody id="experiments"></tbody></table><p id="plans-empty" class="filter-empty" hidden>No plans match this outcome.</p></div>
                 <section id="decision-trail-section" class="decision-trail-section" aria-labelledby="decision-trail-title" hidden><div class="section-heading"><div><h3 id="decision-trail-title">Adaptive experiment trail</h3><p class="section-description">Recorded hypotheses and observed outcomes, one experiment at a time.</p></div><span id="decision-count" class="tag"></span></div><ol id="decision-trail" class="decision-trail"></ol><p class="field-help">Evidence IDs refer to observations supplied at each decision. The JSON export preserves the complete experiment record.</p></section>
                 <details class="limitations"><summary>What this experiment can establish</summary><ul id="rehearsal-limitations"></ul></details>
                 <div class="export-links"><a id="rehearsal-download" class="text-link">Download experiment JSON <span aria-hidden="true">↗</span></a></div>
@@ -165,7 +171,7 @@
           <aside class="context-column" aria-label="Incident context">
             <section class="panel next-step-panel"><span class="eyebrow">WHAT HAPPENS NEXT</span><h2 id="next-title">Introduce a failure</h2><p id="next-description">Start the guided demo or choose a scenario to create a reproducible incident.</p><ol class="workflow-checklist"><li id="check-diagnosis"><span>1</span><div><strong>Find the cause</strong><small>Evidence-backed diagnosis</small></div></li><li id="check-rehearsal"><span>2</span><div><strong>Test the options</strong><small>Isolated recovery experiments</small></div></li><li id="check-recovery"><span>3</span><div><strong>Verify the recovery</strong><small>Fresh requests after promotion</small></div></li></ol></section>
             <section class="panel timeline-panel"><div class="section-heading"><h2>Active lab activity</h2><span id="event-count" class="subtle">0 events</span></div><div id="timeline" class="timeline"><p class="field-help">Every step leaves a record.</p></div></section>
-            <div class="scope-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 6 2v5c0 4-6 8-6 8S4 13 4 9V4z"/><path d="m7 9 2 2 4-4"/></svg><p>Local and disposable. Passing lab requests establish an outcome for this snapshot, not a production guarantee.</p></div>
+            <div class="scope-note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 6 2v5c0 4-6 8-6 8S4 13 4 9V4z"/><path d="m7 9 2 2 4-4"/></svg><p>Local and disposable. HTTP and business contract checks establish an outcome for this snapshot, not a production guarantee.</p></div>
           </aside>
         </div>
       </section>

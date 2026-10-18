@@ -20,6 +20,85 @@ const dateTime = (value) => {
   return Number.isNaN(date.valueOf()) ? "Saved record" : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
 };
 const actionLabel = (actions) => actions?.length ? actions.map((action) => actionNames[action] || action.replaceAll("_", " ")).join(" + ") : "No changes · control";
+function semanticState(verification) {
+  const checks = Array.isArray(verification?.semantic_checks) ? verification.semantic_checks : [];
+  const known = typeof verification?.semantic_passed === "boolean";
+  const evaluated = checks.filter((check) => check.evaluated);
+  const failed = evaluated.filter((check) => !check.passed);
+  return { known, checks, evaluated, failed, passed: known && verification.semantic_passed === true };
+}
+function httpHealthy(verification) {
+  return typeof verification?.all_http_healthy === "boolean" ? verification.all_http_healthy
+    : !!verification?.statuses?.length && verification.statuses.every((code) => code === 200);
+}
+function recoveryVerified(verification) {
+  return !!verification?.all_healthy && httpHealthy(verification) && semanticState(verification).passed;
+}
+function totalLabel(cents, contract) {
+  if (typeof cents !== "number" || !Number.isFinite(cents)) return "Not returned";
+  if (contract?.currency) {
+    try { return new Intl.NumberFormat(undefined, { style: "currency", currency: contract.currency }).format(cents / 100); } catch { /* Use explicit decimal amounts for older or invalid currency metadata. */ }
+  }
+  return `${(cents / 100).toFixed(2)}${contract?.currency ? ` ${contract.currency}` : ""}`;
+}
+function mismatchLabel(check, contract) {
+  if (!check.evaluated) return `${check.sku}: business checks unavailable after HTTP ${check.http_status}.`;
+  const price = `${check.sku}: expected ${totalLabel(check.expected_total_cents, contract)}, observed ${totalLabel(check.observed_total_cents, contract)}`;
+  return check.observed_sku !== check.sku ? `${price}; expected SKU ${check.sku}, observed ${check.observed_sku ?? "not returned"}.` : `${price}.`;
+}
+function verificationSummary(verification) {
+  const semantic = semanticState(verification);
+  const requests = verification?.requests ?? verification?.statuses?.length ?? 0;
+  if (!semantic.known) return `HTTP responses: ${(verification?.statuses || []).join(", ") || "not recorded"}. Business correctness was not recorded in this report.`;
+  if (recoveryVerified(verification)) return `${requests} of ${requests} fresh requests passed HTTP, price, and SKU checks.`;
+  if (httpHealthy(verification)) return `All ${requests} requests returned HTTP 200, but ${semantic.failed.length || "one or more"} response${semantic.failed.length === 1 ? "" : "s"} violated the business contract.`;
+  return `HTTP responses: ${(verification?.statuses || []).join(", ") || "not recorded"}. ${semantic.evaluated.length} responses were evaluated for business correctness${semantic.failed.length ? `; ${semantic.failed.length} failed` : ""}.`;
+}
+function providerFailureLabel(failure) {
+  const categories = {
+    authentication: "Provider authentication failed", rate_limited: "Provider rate limit",
+    provider_unavailable: "Provider unavailable", request_rejected: "Provider rejected the request",
+    transport_timeout: "Provider request timed out", transport_error: "Provider connection failed",
+    invalid_response: "Provider returned an invalid response", unknown_provider_error: "Provider request failed",
+  };
+  const label = categories[failure?.category];
+  if (typeof label !== "string") return null;
+  const status = failure.status_code;
+  const retry = failure.retry_after_seconds;
+  const validStatus = Number.isInteger(status) && status >= 100 && status <= 599;
+  const validRetry = typeof retry === "number" && Number.isFinite(retry) && retry >= 0 && retry <= 3600;
+  return `${label}${validStatus ? ` (HTTP ${status})` : ""}.${validRetry ? ` Retry after ${Math.ceil(retry)} seconds.` : ""}`;
+}
+function contractChecks(checks, contract) {
+  return checks.map((check) => {
+    const item = el("div", `contract-check${check.evaluated && !check.passed ? " failed" : ""}`);
+    const heading = el("div", "contract-check-heading");
+    heading.append(el("strong", "", check.sku), el("span", "", !check.evaluated ? `Not evaluated · HTTP ${check.http_status}` : check.passed ? `Contract passed · HTTP ${check.http_status}` : `Contract failed · HTTP ${check.http_status}`));
+    const values = el("dl", "contract-values");
+    for (const [label, value] of [["Expected total", totalLabel(check.expected_total_cents, contract)], ["Observed total", totalLabel(check.observed_total_cents, contract)], ["Expected SKU", check.sku], ["Observed SKU", check.observed_sku ?? "Not returned"]]) {
+      const pair = el("div");
+      pair.append(el("dt", "", label), el("dd", "", value));
+      values.append(pair);
+    }
+    item.append(heading, values);
+    if (check.evaluated && check.violations?.length) item.append(el("p", "contract-violations", check.violations.map((code) => code.replaceAll("_", " ")).join(" · ")));
+    return item;
+  });
+}
+function appendContractDetails(target, verification, preview = true) {
+  const semantic = semanticState(verification);
+  const label = !semantic.known ? "Business checks not recorded" : semantic.failed.length ? `${semantic.failed.length} business contract failure${semantic.failed.length === 1 ? "" : "s"}` : semantic.passed ? "Price & SKU contracts passed" : semantic.evaluated.length ? "Business checks incomplete" : "Business checks not evaluated";
+  target.append(el("span", `contract-outcome${semantic.failed.length ? " failed" : semantic.passed ? " passed" : ""}`, label));
+  if (preview && semantic.failed.length) target.append(el("p", "contract-inline-mismatch", mismatchLabel(semantic.failed[0], verification.contract)));
+  if (semantic.checks.length) {
+    const details = el("details", "contract-details compact");
+    details.append(el("summary", "", `Inspect ${semantic.checks.length} response checks`));
+    const list = el("div", "contract-check-list");
+    list.append(...contractChecks(semantic.checks, verification.contract));
+    details.append(list);
+    target.append(details);
+  }
+}
 function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -73,7 +152,7 @@ function controls() {
   const finding = state.record?.result?.finding;
   $("remediate").disabled = locked || !isCurrent(state.record) || !finding || finding.action === "no_action" || !!state.record?.remediation;
   const plan = recommendedPlan();
-  $("promote").disabled = locked || !isCurrent(state.rehearsal) || !plan?.verification?.all_healthy || !!state.rehearsal?.promotion;
+  $("promote").disabled = locked || !isCurrent(state.rehearsal) || !recoveryVerified(plan?.verification) || !!state.rehearsal?.promotion;
   $("refresh-history").disabled = state.busy;
   $("refresh-workspace").disabled = state.busy;
   $("return-active").disabled = state.busy;
@@ -145,7 +224,7 @@ function rehearsalStrategyNote() {
   const adaptive = strategy !== "exhaustive";
   $("experiment-budget-field").hidden = !adaptive;
   text("rehearsal-mode-note", strategy === "mistral"
-    ? `The Mistral agent chooses the next plan from lab evidence and previous outcomes. Sanitized logs, metrics, service health, and experiment observations are sent to ${state.config?.model || "the configured Mistral model"} through the Mistral API. Calls can incur provider charges; usage is recorded.`
+    ? `The Mistral agent chooses the next plan from lab evidence and previous outcomes. Sanitized logs, metrics, service health, business contract checks, and experiment observations are sent to ${state.config?.model || "the configured Mistral model"} through the Mistral API. Calls can incur provider charges; usage is recorded.`
     : adaptive
       ? "A deterministic offline policy chooses the next plan using observed failures and earlier experiment results. No model API calls. It may leave plans untested when it stops."
       : "Compare every candidate within the selected plan size. No model API calls. The selected result is minimal within this tested set.");
@@ -157,22 +236,25 @@ function renderStatus(status) {
   state.status = status;
   text("connection", status.busy ? "Lab operation in progress" : "Lab connected");
   $("connection-dot").classList.remove("offline");
-  const failing = status.errors > 0;
+  const transportErrors = status.http_errors ?? status.errors ?? 0;
+  const semanticFailures = status.semantic_failures ?? 0;
+  const contractsKnown = typeof status.semantic_checked_requests === "number";
+  const failing = transportErrors > 0 || semanticFailures > 0;
   const noRequests = !status.requests;
   const scenario = state.scenarios.find((item) => item.id === status.scenario_id);
   text("active-scenario", scenario?.name || "Active incident");
   text("scenario-kind", scenario?.fault_count > 1 ? "COMPOUND FAULT" : scenario?.fault_count === 1 ? "SINGLE FAULT" : "CONTROL SCENARIO");
   $("scenario-kind").classList.toggle("amber", !!scenario?.fault_count);
   $("incident-status-dot").classList.toggle("failing", failing);
-  $("error-metric").classList.toggle("failing", failing);
+  $("error-metric").classList.toggle("failing", transportErrors > 0);
   const card = $("health-badge").closest(".health-card");
   card.classList.toggle("failing", failing);
   card.classList.toggle("unobserved", noRequests);
-  text("health-badge", noRequests ? "Awaiting requests" : failing ? "Degraded" : "Healthy");
-  text("health-caption", !status.telemetry_available ? "Diagnostic telemetry unavailable" : failing ? "Checkout requests failing" : "Fresh request window");
+  text("health-badge", noRequests ? "Awaiting requests" : failing ? "Degraded" : contractsKnown ? "Healthy" : "HTTP healthy");
+  text("health-caption", !status.telemetry_available ? "Diagnostic telemetry unavailable" : semanticFailures > 0 && transportErrors === 0 ? "HTTP 200 · business checks fail" : transportErrors > 0 ? "Checkout requests failing" : contractsKnown ? "Availability + contracts passed" : "Business checks not recorded");
   text("request-count", number(status.requests));
-  text("error-count", number(status.errors));
-  text("error-rate", `${Math.round(Number(status.error_rate || 0) * 100)}%`);
+  text("error-count", number(transportErrors));
+  text("error-rate", `${status.requests ? Math.round(transportErrors / status.requests * 100) : 0}%`);
   $("latency").replaceChildren(document.createTextNode(Number(status.median_latency_ms || 0).toFixed(1)), el("small", "", "ms"));
   text("window-label", `Observation window ${status.window}`);
   $("request-bars").replaceChildren(...(status.recent_statuses || []).map((code) => {
@@ -182,6 +264,7 @@ function renderStatus(status) {
     return bar;
   }));
   text("episode", `EPISODE ${status.episode_id} / SEED ${status.seed} / REV ${status.revision ?? 0}`);
+  renderContractStatus(status);
   clearTimeout(busyRefreshTimer);
   if (status.busy) busyRefreshTimer = setTimeout(async () => {
     if (state.busy) { renderStatus(state.status); return; }
@@ -192,6 +275,28 @@ function renderStatus(status) {
       $("error").hidden = false;
     }
   }, 2000);
+}
+function renderContractStatus(status) {
+  const known = typeof status.semantic_checked_requests === "number";
+  const checked = Number(status.semantic_checked_requests || 0);
+  const failed = Number(status.semantic_failures || 0);
+  const checks = Array.isArray(status.recent_semantic_checks) ? status.recent_semantic_checks : [];
+  const passing = known && status.requests > 0 && checked === status.requests && failed === 0;
+  $("contract-health").classList.toggle("failed", failed > 0);
+  $("contract-health").classList.toggle("passed", passing);
+  text("contract-health-title", failed ? "Successful responses contain incorrect checkout results." : passing ? "Correct prices. Correct products." : known ? "Business checks follow successful responses." : "Business correctness is not recorded.");
+  text("contract-health-badge", failed ? `${number(failed)} CONTRACT FAILURE${failed === 1 ? "" : "S"}` : passing ? "CONTRACTS PASSED" : known ? "AWAITING VALID RESPONSES" : "HTTP-ONLY OBSERVATIONS");
+  $("contract-health-badge").classList.toggle("amber", failed > 0);
+  text("contract-health-summary", !known ? "This observation window only records transport health. HTTP 200 alone does not establish that checkout totals or product IDs are correct."
+    : checked ? `${number(checked - failed)} of ${number(checked)} evaluated responses matched the expected price and SKU.${status.requests > checked ? ` ${number(status.requests - checked)} requests could not be evaluated after an HTTP failure.` : ""}`
+      : "No successful checkout responses have been evaluated yet. HTTP failures must be resolved before prices and product IDs can be checked.");
+  const mismatch = checks.find((check) => check.evaluated && !check.passed);
+  $("contract-mismatch-preview").hidden = !mismatch;
+  text("contract-mismatch-preview", mismatch ? mismatchLabel(mismatch, status.contract) : "");
+  $("contract-health-details").hidden = !checks.length;
+  $("contract-health-checks").replaceChildren(...contractChecks(checks, status.contract));
+  $("contract-version").hidden = !status.contract;
+  text("contract-version", status.contract ? `Contract ${status.contract.id} · version ${status.contract.version} · expected values are independent of the response.` : "");
 }
 function revealEvidence(id) {
   switchTab("evidence");
@@ -207,10 +312,11 @@ function verificationNotice(target, result, successText) {
   const verification = result?.verification;
   if (!verification) { target.hidden = true; return; }
   target.hidden = false;
-  target.className = `notice${verification.all_healthy ? "" : " error"}`;
-  target.textContent = verification.all_healthy
-    ? `${successText} ${verification.statuses?.filter((code) => code === 200).length ?? verification.requests} of ${verification.requests} fresh requests returned HTTP 200.`
-    : `Recovery not verified. Fresh responses: ${(verification.statuses || []).join(", ")}. Another fault may remain; investigate or rehearse again.`;
+  const semantic = semanticState(verification);
+  const recovered = recoveryVerified(verification);
+  target.className = `notice${!semantic.known && httpHealthy(verification) ? " neutral" : recovered ? "" : " error"}`;
+  target.textContent = `${recovered ? successText : !semantic.known && httpHealthy(verification) ? "Availability was verified; full recovery was not established." : "Recovery not verified."} ${verificationSummary(verification)}`;
+  appendContractDetails(target, verification);
 }
 function renderFinding(record) {
   state.record = record;
@@ -307,17 +413,21 @@ function renderRehearsal(record) {
   if (!report) return;
   const plan = recommendedPlan();
   const controlHealthy = report.control?.verification?.all_healthy || report.summary?.control_healthy;
+  const controlSemantic = semanticState(report.control?.verification);
+  const planSemantic = semanticState(plan?.verification);
   const missingTelemetry = report.summary?.abstention_reason === "missing_telemetry";
   const planningFailure = rehearsalFailures[report.budget?.stop_reason];
   const recommendation = $("recommendation");
   recommendation.className = `recommendation${!plan && !controlHealthy ? " warning" : ""}`;
   recommendation.replaceChildren(el("span", "recommendation-icon", plan || controlHealthy ? "✓" : "!"));
   const message = el("div");
-  message.append(el("h3", "", planningFailure ? planningFailure.title : missingTelemetry ? "Rehearsal withheld: diagnostic telemetry unavailable." : controlHealthy ? "The control is already healthy." : plan ? `${plan.actions.length === 1 ? "One action" : `${plan.actions.length} actions`} recovered this snapshot.` : "No tested plan recovered checkout."));
+  message.append(el("h3", "", planningFailure ? planningFailure.title : missingTelemetry ? "Rehearsal withheld: diagnostic telemetry unavailable." : controlHealthy ? controlSemantic.known ? "The control passed availability and business checks." : "The control passed the recorded HTTP checks." : plan ? planSemantic.passed ? `${plan.actions.length === 1 ? "One action" : `${plan.actions.length} actions`} recovered this snapshot.` : "A plan passed the recorded HTTP checks." : "No tested plan recovered checkout."));
   message.append(el("p", "", planningFailure ? planningFailure.description : missingTelemetry ? "No candidate fixes were tested or authorized. Restore diagnostic evidence before selecting a recovery action." : controlHealthy
-    ? "Fresh requests passed without changes. No remediation is recommended."
-    : plan ? `${actionLabel(plan.actions)}. This is the smallest passing tested plan; untested plans are not evaluated.`
+    ? controlSemantic.known ? "Fresh requests matched the expected price and SKU without changes. No remediation is recommended." : "Business correctness was not recorded in this older report. Run a new rehearsal to check response contracts."
+    : plan ? planSemantic.known ? `${actionLabel(plan.actions)}. Fresh responses passed HTTP, price, and SKU checks. This is the smallest passing tested plan.` : `${actionLabel(plan.actions)}. Business correctness was not recorded. Run a new rehearsal before promoting a change.`
       : "Review the evidence and experiment outcomes. A larger plan or a different intervention may be needed."));
+  const providerDetail = providerFailureLabel(report.error?.provider_failure);
+  if (providerDetail) message.append(el("p", "provider-failure-detail", providerDetail));
   recommendation.append(message);
   text("plans-tested", number(report.summary?.tested_plans ?? report.experiments?.length));
   text("plans-passed", number(report.summary?.successful_plans ?? report.experiments?.filter((item) => item.verification.all_healthy).length));
@@ -327,8 +437,8 @@ function renderRehearsal(record) {
   renderExperiments();
   $("promotion").hidden = !plan || !!record.promotion || state.archive;
   const promotionDescription = $("promotion").querySelector("p");
-  promotionDescription.textContent = isCurrent(record)
-    ? "Apply the smallest passing tested plan to the active lab, then verify it with fresh requests."
+  promotionDescription.textContent = !planSemantic.known ? "This older report has no business contract checks. Run a new rehearsal before promoting a plan." : isCurrent(record)
+    ? "Apply the smallest passing tested plan, then verify fresh HTTP responses, prices, and product IDs in the active lab."
     : "The lab has changed since this experiment. Run a new rehearsal before promoting a plan.";
   $("rehearsal-limitations").replaceChildren(...(report.limitations || []).map((limitation) => el("li", "", limitation)));
   $("rehearsal-download").href = `/api/rehearsals/${record.id}`;
@@ -383,6 +493,7 @@ function renderRehearsalRun(report) {
       }
       observed.append(codes);
       item.append(observed);
+      appendContractDetails(item, decision);
     }
     if (decision.evidence_ids?.length) {
       const citations = el("div", "decision-citations");
@@ -419,7 +530,10 @@ function renderExperiments() {
     responsesCell.append(codes);
     const passed = !!experiment.verification?.all_healthy;
     const resultCell = el("td");
-    resultCell.append(el("span", `result-pill${passed ? "" : " failed"}`, passed ? "Passed" : "Failed"));
+    const semantic = semanticState(experiment.verification);
+    resultCell.append(el("span", `result-pill${passed && semantic.passed ? "" : !semantic.known && passed ? " legacy" : " failed"}`, passed ? semantic.passed ? "Verified" : "HTTP only" : "Failed"));
+    if (httpHealthy(experiment.verification) && semantic.known && !semantic.passed) resultCell.append(el("span", "false-recovery-label", "HTTP 200 ≠ recovery"));
+    appendContractDetails(labelCell, experiment.verification);
     row.append(labelCell, responsesCell, el("td", "", `${Number(experiment.verification?.median_latency_ms || 0).toFixed(1)} ms`), resultCell);
     return row;
   }));
@@ -447,7 +561,7 @@ function renderNextStep() {
   const hasFinding = !!state.record;
   const hasRehearsal = !!state.rehearsal;
   const latestRecovery = state.record?.episode_recovery || state.rehearsal?.promotion || state.record?.remediation;
-  const recovered = !!latestRecovery?.verification?.all_healthy;
+  const recovered = recoveryVerified(latestRecovery?.verification);
   for (const [id, complete, index] of [["check-diagnosis", hasFinding, 1], ["check-rehearsal", hasRehearsal, 2], ["check-recovery", recovered, 3]]) {
     $(id).classList.toggle("complete", complete);
     $(id).querySelector("span").textContent = complete ? "✓" : String(index);
@@ -458,25 +572,28 @@ function renderNextStep() {
     description = "This investigation belongs to a saved lab snapshot. Explore its tool trail or download the postmortem.";
   } else if (recovered) {
     title = "Recovery, with proof";
-    description = "Fresh checkout requests passed after the change. Export the evidence or start another incident to explore a different failure.";
+    description = "Fresh requests passed HTTP availability and matched expected prices and product IDs. Export the evidence or start another incident.";
   } else if (state.rehearsal?.report?.summary?.abstention_reason === "missing_telemetry") {
     title = "Restore the missing evidence";
     description = "Diagnostic telemetry is unavailable. No candidate changes were tested or authorized for this snapshot.";
   } else if (rehearsalFailures[state.rehearsal?.report?.budget?.stop_reason]) {
     title = state.rehearsal.report.budget.stop_reason === "experiment_error" ? "Review the experiment failure" : "Review the planning failure";
     description = "The rehearsal could not produce an authorized recovery plan. Inspect the saved outcome, then retry or choose another strategy.";
-  } else if (latestRecovery) {
-    title = "A fault may still remain";
-    description = "The last fix did not restore healthy requests. Run a new rehearsal against the updated state to find the remaining intervention.";
-  } else if (hasRehearsal && recommendedPlan() && isCurrent(state.rehearsal)) {
+  } else if (hasRehearsal && recoveryVerified(recommendedPlan()?.verification) && isCurrent(state.rehearsal)) {
     title = "Promote a tested plan";
-    description = "The comparison found a passing plan. Review its outcomes, then apply it and verify new traffic in the active lab.";
+    description = "The comparison found a plan that passes HTTP and business contract checks. Apply it, then verify fresh responses in the active lab.";
+  } else if (latestRecovery) {
+    title = !semanticState(latestRecovery.verification).known ? "Availability-only recovery record" : httpHealthy(latestRecovery.verification) ? "HTTP 200 is not a full recovery" : "A fault may still remain";
+    description = !semanticState(latestRecovery.verification).known ? "This record does not include business checks. Rehearse the current state to verify prices and product IDs." : httpHealthy(latestRecovery.verification) ? "Requests are reaching checkout, but the returned business data is still wrong. Rehearse the updated state to test a complete fix." : "The last fix did not restore healthy requests. Run a new rehearsal against the updated state to find the remaining intervention.";
   } else if (hasRehearsal && state.rehearsal.report?.control?.verification?.all_healthy) {
-    title = "Keep the healthy control";
-    description = "The no-change control passed. No fix is needed for this snapshot. Start a failure scenario to explore recovery.";
+    title = semanticState(state.rehearsal.report.control.verification).known ? "Keep the healthy control" : "Recheck business correctness";
+    description = semanticState(state.rehearsal.report.control.verification).known ? "The no-change control passed HTTP, price, and SKU checks. No fix is needed for this snapshot." : "This saved control only recorded HTTP availability. A new rehearsal can verify expected prices and product IDs.";
   } else if (hasFinding) {
     title = "Put the suggestion to a test";
     description = "Rehearse single fixes and combinations. A second fault can stay hidden until the first one is repaired.";
+  } else if (state.status?.semantic_failures > 0 && !state.status?.http_errors) {
+    title = "Look beyond the status code";
+    description = "Checkout returns HTTP 200, but price or product checks are failing. Investigate the contract evidence before selecting a fix.";
   } else if (state.status?.errors > 0) {
     title = "Follow the failure";
     description = "Checkout is returning errors. Run an investigation to connect the requests, recent changes, and service observations.";
@@ -634,21 +751,25 @@ $("expand-evidence").addEventListener("click", () => {
   updateEvidenceToggle();
 });
 $("history-search").addEventListener("input", () => renderHistory(state.history));
-$("demo").addEventListener("click", () => operation("Starting a compound failure and investigating the first visible fault…", async () => {
-  $("scenario").value = "route_and_release";
+$("demo").addEventListener("click", () => operation("Starting a route fault that masks silently incorrect checkout totals…", async () => {
+  $("scenario").value = "route_and_price_drift";
   $("seed").value = 42;
   $("mode").value = "baseline";
-  $("question").value = "Investigate checkout health. Identify the cause of any failure and propose an evidence-backed fix.";
+  $("rehearsal-strategy").value = "adaptive";
+  $("max-experiments").value = "4";
+  $("max-actions").value = "2";
+  $("question").value = "Investigate checkout availability and business correctness. Identify observed failures and propose an evidence-backed fix.";
   $("evidence-search").value = "";
   $("plan-filter").value = "all";
   scenarioDescription();
   modeNote();
-  await api("/api/inject", { scenario_id: "route_and_release", seed: 42 });
+  rehearsalStrategyNote();
+  await api("/api/inject", { scenario_id: "route_and_price_drift", seed: 42 });
   await refreshWorkspace();
   await api("/api/investigate", { mode: "baseline", question: $("question").value });
   await refreshWorkspace();
   switchTab("diagnosis");
-  text("activity", "Demo ready. Two faults are present. Review the first finding, then rehearse to test a complete recovery.");
+  text("activity", "Offline demo ready. A route fault masks incorrect totals. Rehearse with the offline adaptive policy to see why HTTP 200 alone is not recovery.");
   $("finding-title").tabIndex = -1;
   $("finding-title").focus({ preventScroll: true });
   $("finding").scrollIntoView({ block: "nearest", behavior: "auto" });
@@ -687,7 +808,7 @@ $("investigate-form").addEventListener("submit", (event) => {
 $("probe").addEventListener("click", () => operation("Sending five fresh checkout requests…", async () => {
   const result = await api("/api/probe", { count: 5 });
   await refreshWorkspace();
-  text("activity", `Probe complete: ${result.verification.statuses.join(", ")}. ${result.verification.all_healthy ? "All requests passed." : "Checkout is still returning errors."}`);
+  text("activity", `Probe complete. ${verificationSummary(result.verification)}`);
 }));
 $("show-evidence").addEventListener("click", () => switchTab("evidence", true));
 $("go-rehearse").addEventListener("click", () => switchTab("rehearsal", true));
@@ -696,7 +817,7 @@ $("max-actions").addEventListener("change", rehearsalStrategyNote);
 $("remediate").addEventListener("click", () => operation("Applying the single proposed fix and verifying fresh requests…", async () => {
   const result = await api("/api/remediate", { investigation_id: state.record.id, action: state.record.result.finding.action });
   await refreshWorkspace();
-  text("activity", result.verification.all_healthy ? "Recovery verified against fresh traffic. The result is saved with the investigation." : "The suggestion was applied, but checkout is still failing. Rehearse the updated state to find the remaining fix.");
+  text("activity", `Suggestion applied. ${verificationSummary(result.verification)}${recoveryVerified(result.verification) ? "" : " Rehearse the updated state before another change."}`);
 }));
 $("rehearse").addEventListener("click", () => {
   const strategy = $("rehearsal-strategy").value;
@@ -715,13 +836,14 @@ $("rehearse").addEventListener("click", () => {
 $("promote").addEventListener("click", () => operation("Promoting the tested recovery plan and verifying fresh traffic in the active lab…", async () => {
   const result = await api("/api/promote", { rehearsal_id: state.rehearsal.id, plan_id: state.rehearsal.report.recommended_plan_id });
   await refreshWorkspace();
-  text("activity", result.verification.all_healthy ? "Recovery verified. The tested plan passed fresh requests in the active lab." : "Plan applied, but fresh verification failed. Review the new observations before another change.");
+  text("activity", `Tested plan applied. ${verificationSummary(result.verification)}`);
 }));
 
 async function loadConfiguration() {
   const [config, scenarios] = await Promise.all([api("/api/config"), api("/api/scenarios")]);
   state.config = config;
   state.scenarios = scenarios;
+  text("scenario-count", `${scenarios.length} SCENARIOS`);
   const groups = [
     ["Compound incidents · two faults", (scenario) => scenario.fault_count > 1],
     ["Single-fault incidents", (scenario) => scenario.fault_count === 1],
