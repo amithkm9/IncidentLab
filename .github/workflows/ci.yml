@@ -1,10 +1,14 @@
 name: Verify IncidentLab
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Build and run real-HTTP integration tests
         run: docker compose --profile test run --build --rm test
       - name: Check Python code quality
@@ -19,7 +23,7 @@ jobs:
         run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile eval run --rm eval incidentlab-adaptive-eval --seeds 42 --max-experiments 4 --output artifacts/adaptive-smoke.json
       - name: Detect false recovery from HTTP-only verification
         run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile eval run --rm eval incidentlab-semantic-eval --split smoke --output artifacts/semantic-smoke.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: incidentlab-evaluations

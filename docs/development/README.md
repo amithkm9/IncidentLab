@@ -107,3 +107,14 @@ The Docker build also compiles the frontend before installing the backend. No
 frontend development server or external CDN is needed to run the packaged app.
 Keep API credentials in the server environment or ignored local `.env` used by
 Compose; the Python CLI does not load that file automatically.
+
+## Hosted CI runtime
+
+The workflow pins `ubuntu-24.04` and uses `actions/checkout@v7` and
+`actions/upload-artifact@v7`. Both action definitions declare Node 24:
+[checkout](https://github.com/actions/checkout/blob/v7/action.yml) and
+[artifact upload](https://github.com/actions/upload-artifact/blob/v7/action.yml).
+This resolves the deprecated Node 20 action warning. Pinning the runner avoids
+GitHub's announced [Ubuntu-latest migration](https://github.com/actions/runner-images/issues/14748)
+changing the host image implicitly. Repository permissions are read-only, and
+checkout credentials are not retained after fetching source.

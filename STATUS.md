@@ -78,6 +78,11 @@ response now close explicitly. A retained-response regression checks immediate
 closure; 31 focused tests also passed with allocation tracing enabled. No warning
 suppression was added.
 
+The first hosted CI run also passed, but exposed Node 20 action-deprecation
+annotations. Checkout and artifact upload now use their Node 24-based v7
+releases. CI pins Ubuntu 24.04 to avoid an implicit runner-image migration,
+uses read-only repository permissions, and does not persist checkout credentials.
+
 All four reorganized evaluation commands completed their offline smoke runs:
 
 | Runner | Measured smoke result |
