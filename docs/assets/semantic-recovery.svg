@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700" role="img" aria-labelledby="title desc">
+  <title id="title">Semantic recovery: HTTP 200 must also satisfy the checkout contract</title>
+  <desc id="desc">A versioned response contract independently expects a notebook to cost twelve US dollars. A broken inventory route returns HTTP 502. Restoring only the route returns HTTP 200 but charges thirteen dollars, so the price contract fails. The measured mismatch becomes tool feedback for the adaptive planner. A plan combining route restoration and release rollback returns HTTP 200 with the expected twelve-dollar total. Every trial begins from the same source snapshot. Operator approval and current-state checks precede five fresh requests that must pass both HTTP and contract validation.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 8 4 0 8Z" fill="#769d88"/></marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; fill: #172b25; }
+      .title { font-size: 32px; font-weight: 700; letter-spacing: -.7px; }
+      .heading { font-size: 20px; font-weight: 650; }
+      .body { font-size: 17px; fill: #52685e; }
+      .label { font-size: 15px; font-weight: 650; fill: #52685e; letter-spacing: .8px; }
+      .value { font-size: 30px; font-weight: 700; letter-spacing: -.6px; }
+      .line { fill: none; stroke: #769d88; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1000" height="700" rx="24" fill="#f7faf7"/>
+  <text class="title" x="32" y="52">HTTP 200 is only half the recovery.</text>
+  <text class="body" x="32" y="82">Verify the response against the business requirement before calling a fix successful.</text>
+
+  <rect x="32" y="108" width="936" height="84" rx="14" fill="#e8f4ed" stroke="#c9dfd1"/>
+  <text class="heading" x="54" y="141">Independent contract · checkout-response v1.0.0</text>
+  <text class="body" x="54" y="170">Notebook = $12.00 USD · exact cents · expected product · valid response shape</text>
+  <text class="label" x="32" y="225">EXAMPLE: A ROUTE FAULT HIDES SILENT PRICE DRIFT</text>
+
+  <rect x="32" y="246" width="288" height="206" rx="14" fill="#fff" stroke="#d7e3db"/>
+  <text class="label" x="52" y="276">NO-ACTION CONTROL</text>
+  <text class="heading" x="52" y="309">Route unavailable</text>
+  <text class="value" x="52" y="355" style="fill:#a9582f">HTTP 502</text>
+  <text class="body" x="52" y="390">Checkout cannot reach inventory.</text>
+  <text class="body" x="52" y="420">No successful response to validate.</text>
+  <path class="line" d="M322 349H348"/>
+
+  <rect x="356" y="246" width="288" height="206" rx="14" fill="#fff7ed" stroke="#e8d6bc"/>
+  <text class="label" x="376" y="276">TRIAL: RESTORE ROUTE</text>
+  <text class="heading" x="376" y="309">Available, but incorrect</text>
+  <text class="value" x="376" y="355">HTTP 200</text>
+  <text class="body" x="376" y="390">Expected $12.00 · observed $13.00</text>
+  <text x="376" y="420" font-size="17" font-weight="650" style="fill:#9b5c28">Price mismatch · rejected</text>
+  <path class="line" d="M646 349H672"/>
+
+  <rect x="680" y="246" width="288" height="206" rx="14" fill="#e8f4ed" stroke="#c9dfd1"/>
+  <text class="label" x="700" y="276">TRIAL: ROUTE + ROLLBACK</text>
+  <text class="heading" x="700" y="309">Available and correct</text>
+  <text class="value" x="700" y="355" style="fill:#176448">HTTP 200</text>
+  <text class="body" x="700" y="390">Expected $12.00 · observed $12.00</text>
+  <text x="700" y="420" font-size="17" font-weight="650" style="fill:#176448">HTTP + contract passed</text>
+
+  <path class="line" d="M500 454V476"/>
+  <rect x="32" y="482" width="936" height="66" rx="12" fill="#fff" stroke="#d7e3db"/>
+  <text class="heading" x="54" y="509">Tool feedback informs the next plan</text>
+  <text class="body" x="54" y="535">Observed price_mismatch + evidence IDs → offline adaptive policy or Mistral planner.</text>
+
+  <rect x="32" y="573" width="936" height="77" rx="14" fill="#103e32"/>
+  <text x="54" y="606" font-size="20" font-weight="650" style="fill:#fff">Operator approval → five fresh requests must pass HTTP + contract checks</text>
+  <text x="54" y="634" font-size="16" style="fill:#d1e9dc">Current episode + revision + state fingerprint checked. The contract version and SHA-256 travel with the evidence.</text>
+  <text x="32" y="680" font-size="16" style="fill:#52685e">Every trial starts from the same snapshot. Example lab behavior shown; this is not a live-model benchmark result.</text>
+</svg>

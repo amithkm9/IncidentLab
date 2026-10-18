@@ -3,7 +3,8 @@
 IncidentLab runs a deliberately small but real application: checkout calls an
 inventory HTTP service and reads a SQLite catalog. The application is designed
 to fail in observable ways so diagnosis, remediation, and verification can be
-measured end to end.
+measured end to end. Recovery requires successful HTTP responses that also
+satisfy an independently defined checkout contract.
 
 ![IncidentLab architecture and isolated recovery workflow](assets/architecture.svg)
 
@@ -11,7 +12,8 @@ measured end to end.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/incidentlab/lab.py` | Checkout and inventory HTTP servers, SQLite catalog, ten scenarios, actual-state snapshots, independent clone lifecycle |
+| `src/incidentlab/lab.py` | Checkout and inventory HTTP servers, SQLite catalog, twelve scenarios including four compound failures, snapshots, clone lifecycle, and response verification |
+| `src/incidentlab/contracts.py` | Immutable versioned checkout requirements, strict JSON/schema checks, exact monetary validation, and contract fingerprint |
 | `src/incidentlab/rehearsal.py` | Bounded intervention search, no-action control, measured selection of the smallest successful plan |
 | `src/incidentlab/adaptive.py` | Evidence-driven sequential experiments, bounded Mistral Conversations tools, sanitized observations and usage accounting |
 | `src/incidentlab/investigator.py` | Deterministic offline rules and bounded Mistral adapter |
@@ -23,6 +25,7 @@ measured end to end.
 | `src/incidentlab/evaluate.py` | Frozen single-fault suite and trace reports |
 | `src/incidentlab/evaluate_rehearsal.py` | Single-fix versus rehearsal comparison |
 | `src/incidentlab/evaluate_adaptive.py` | Adaptive and fixed-order policies at equal candidate ceilings, with an explicitly enabled live Mistral arm |
+| `src/incidentlab/evaluate_semantic.py` | Paired HTTP-only/contract-aware acceptance on the same responses, plus independent policy recovery arms |
 | `tests/` | Real-HTTP integration tests and mocked Mistral contract tests |
 
 ## Observation and authority
@@ -45,12 +48,14 @@ run a single worker.
 
 ## Isolated fix rehearsal
 
-1. Snapshot the current configuration, fault state, and database. SQLite's
-   backup API captures the catalog, including partial repairs already made.
+1. Snapshot the current configuration, fault state, database, and response
+   contract. SQLite's backup API captures the catalog, including partial repairs
+   already made. Contract metadata participates in the state fingerprint.
 2. Create independent HTTP/SQLite copies on separate loopback ports. Measure a
    no-action control and all allowed one-action and two-action combinations:
    five individual fixes and ten pairs at the default two-action setting.
-3. Send fresh checkout requests to each copy and retain unsuccessful outcomes.
+3. Send fresh checkout requests to each copy, validate their returned data
+   against the contract, and retain unsuccessful outcomes.
    Choose a shortest passing plan only when the control is failing and
    diagnostic telemetry is available. Healthy controls require no change;
    missing telemetry requires abstention.
@@ -58,7 +63,8 @@ run a single worker.
    and SHA-256 state fingerprint against the current lab. Apply only the
    recommended, measured plan while those checks remain valid.
 5. Begin a new observation window and issue five fresh verification requests.
-   Old failed traffic cannot contaminate the new window's verification.
+   Require both HTTP 200 and valid business-contract checks. Old failed traffic
+   cannot contaminate the new window's verification.
 
 All candidate experiments start from the same actual-state snapshot. The search
 does not inspect scenario labels or expected actions. Each temporary clone is
@@ -66,9 +72,35 @@ closed after its experiment; the source lab remains unchanged during rehearsal.
 
 The search is bounded to five known actions and at most two actions per plan.
 This implementation copies a purpose-built local HTTP/SQLite application, not
-production infrastructure. Passing a small sample of HTTP 200 responses does not
-establish semantic correctness, absence of side effects, long-term reliability,
-or production safety.
+production infrastructure. Passing the declared contract establishes only the
+sampled requirements. It does not establish undeclared business correctness,
+absence of side effects, long-term reliability, or production safety.
+
+## Independent business-contract verification
+
+![A route-only repair returns HTTP 200 with the wrong price; the complete plan must satisfy the versioned checkout contract](assets/semantic-recovery.svg)
+
+The immutable `checkout-response` contract, version `1.0.0`, declares required
+response fields, product identities, and exact expected prices in integer cents.
+Its values are defined separately from the deployed pricing implementation and
+SQLite catalog. The validator rejects incorrect totals, product mismatches,
+fractional-cent values, invalid field types, duplicate JSON keys, and unexpected
+or missing fields.
+
+Each network probe records `all_http_healthy`, `semantic_passed`, individual
+`semantic_checks`, and contract metadata. `all_healthy` requires both HTTP and
+contract success. The three-product probe sequence cycles in a seeded order, so
+default three-request trials and five-request final verification cover the
+declared products. The contract version and SHA-256 travel with saved evidence.
+
+The `silent_price_drift` release returns HTTP 200 with a $1.00 overcharge.
+`route_and_price_drift` hides that business failure behind a missing inventory
+route. Restoring the route alone produces a measured `price_mismatch`; release
+rollback is also needed. The frontend keeps transport and business failures
+distinct and does not relabel older HTTP-only records as contract-verified.
+
+[Contract design and demonstration](SEMANTIC_RECOVERY.md) ·
+[Evaluation protocol and evidence](SEMANTIC_EVALUATION.md)
 
 ## Adaptive experiment selection
 
@@ -81,8 +113,11 @@ candidate ceiling and retains the existing complete bounded search.
 The engine first measures a no-change control. Healthy or missing-telemetry
 controls end without a planner call. Each proposed plan starts from the same
 source snapshot, and the resulting clone supplies fresh logs, metrics, and
-service-health evidence. Paths, endpoints, raw configuration, scenario labels,
-and evaluator answers are excluded from planner observations.
+service-health evidence, including observed contract violations and expected
+versus returned amounts. Paths, endpoints, raw configuration, scenario labels,
+and evaluator answers are excluded from planner observations. An action catalog
+describes the actual effect of each tool, including the distinction between
+restoring a catalog path and rolling back the pricing implementation.
 
 The Mistral adapter uses stateless `/v1/conversations` calls with `store: false`.
 Locally retained `function.call` and `function.result` entries connect each
@@ -148,6 +183,7 @@ uv run incidentlab-eval --mode baseline --split smoke
 uv run incidentlab-eval --mode baseline --split test
 uv run incidentlab-rehearsal-eval --split test
 uv run incidentlab-adaptive-eval --seeds 11,23,37 --max-experiments 4
+uv run incidentlab-semantic-eval --split test --strategies adaptive
 ```
 
 With Docker:
@@ -157,6 +193,7 @@ docker compose --profile test run --build --rm test
 docker compose --profile eval run --build --rm eval incidentlab-eval --mode baseline --split test
 docker compose --profile eval run --build --rm eval incidentlab-rehearsal-eval --split test
 docker compose --profile eval run --build --rm eval incidentlab-adaptive-eval --seeds 11,23,37
+docker compose --profile eval run --build --rm eval incidentlab-semantic-eval --split test --strategies adaptive
 ```
 
 On Linux, prefix the evaluation command with `LOCAL_UID="$(id -u)"
@@ -169,11 +206,19 @@ recovery responses, a manifest hash, and environment metadata under `artifacts/`
 See [evaluation methodology](EVALUATION.md) and the
 [recorded baseline results](BASELINE_RESULTS.md).
 
-The separate rehearsal comparison has 30 cases: 15 single faults, nine compound
-faults, and six controls. Both arms retain failures in metric denominators.
+The original rehearsal comparison has 30 cases: 15 single faults, nine compound
+faults, and six controls. Its recorded October 17 results use the historical
+HTTP-status recovery definition and predate silent-price scenarios. Both arms
+retain failures in metric denominators.
 Rehearsal receives a larger experiment and action budget than the one-shot
 baseline. See [the full protocol and measured results](REHEARSAL_EVALUATION.md)
 for denominators, timing scope, resource cost, and limitations.
+
+The semantic suite separately scores HTTP-only and contract-aware gates on
+identical saved responses. Policy recovery uses independent source labs and
+fresh post-fix checks. See [SEMANTIC_EVALUATION.md](SEMANTIC_EVALUATION.md) for
+that suite, the first pinned live Mistral smoke run, and retained failure records.
+Semantic/adaptive model comparisons require explicit `--allow-paid-api` opt-in.
 
 After configuring credentials, compare model modes with:
 
@@ -192,9 +237,12 @@ mechanisms and do not establish generalization to unseen fault families.
 The new adaptive comparison gives an evidence-driven offline policy and a
 fixed-order search the same candidate/probe ceiling. It does not equalize total
 compute or model reasoning, and fixed-order search is a deliberately simple
-comparator. Live Mistral evaluation against the adaptive policy, semantic checks
-beyond HTTP status, ambiguous faults, and engineer feedback would strengthen
-the evidence further. Production telemetry adapters, richer stateful services,
-and deployment rollback require separate engineering.
+comparator. The first live semantic smoke evaluation exposed provider errors
+and a compound-plan mistake. A follow-up with explicit full-plan context still
+recovered 1/4 faults and reported three HTTP 429 errors; both reports remain
+in the [semantic evaluation](SEMANTIC_EVALUATION.md). Broader invariants, ambiguous faults, a stronger
+iterative baseline, and engineer feedback would strengthen the evidence further.
+Production telemetry adapters, richer stateful services, and deployment
+rollback require separate engineering.
 
 [Back to the project overview](../README.md)

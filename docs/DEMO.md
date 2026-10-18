@@ -1,52 +1,68 @@
-# IncidentLab demo: a fix that reveals another failure
+# IncidentLab demo: available does not always mean correct
 
 Run `docker compose up --build -d app` and open <http://127.0.0.1:8000>.
-Use the offline baseline; this walkthrough makes no model API calls.
+This walkthrough uses the offline policy and makes no model API calls.
 
-For a quick start, choose **Start guided demo**. It creates the compound incident
-at seed 42 and runs its first offline investigation. Continue at step 2 to inspect
-the evidence, then rehearse and apply a plan yourself.
+![An isolated route repair returns HTTP 200 with the wrong price; a combined repair must pass the independent contract](assets/semantic-recovery.svg)
 
-1. Select **Route drift masks a pricing regression**, seed 42, and start it.
-   Checkout fails because it calls an inventory route that does not exist.
-2. Run the investigation. Open a citation and inspect the actual HTTP 404
-   observation. The proposed route repair is supported, but is only one action.
-3. Optional demonstration: apply that single fix. Checkout now reaches pricing
-   and returns HTTP 500. The initial diagnosis did not establish full recovery.
-   Re-inject the compound scenario to compare the complete original state.
-4. Open **Fix rehearsal** and run the two-action comparison. The active lab does
-   not change. Each of 15 plans and the no-change control gets separate local
-   HTTP services and a SQLite database copied from the current state.
-5. Inspect control, route-only, rollback-only, and the combined plan. Only the
-   combined route repair plus pricing rollback restores this incident. Selection
-   uses measured responses and plan size, not the scenario's expected answer.
-   Use **Show → Passed** to isolate the successful plan; **All outcomes** restores
-   the control and failed experiments.
-6. Promote the recommended plan. Five new requests run against the active lab.
-   The result must explicitly say recovery verified; rehearsal success alone is
-   not counted as active-lab recovery.
-7. Export the experiment JSON and incident report. Open history, reload the
-   workspace, and inspect the persistent evidence and timeline.
+1. Choose **Try the silent-failure demo**. It injects
+   `route_and_price_drift` at seed 42, runs the first offline investigation, and
+   selects adaptive rehearsal with a four-experiment ceiling and two-action limit.
+2. Inspect the diagnosis and open a citation. Checkout returns HTTP 502 because
+   its inventory request reaches a nonexistent route; the underlying HTTP 404
+   appears in the evidence.
+3. Open **Fix rehearsal** and run **Adaptive · offline policy**. The control
+   and every candidate use isolated HTTP services and a SQLite copy. The active
+   incident stays unchanged.
+4. Inspect the route-only trial. HTTP requests now return 200, but the pricing
+   release adds $1.00 to each total: a notebook returns $13.00 against the
+   independent contract's $12.00 requirement. Open the business checks and read
+   the expected and observed values. This trial is a failed recovery.
+5. Follow the adaptive decision trail. The measured `price_mismatch` supports
+   a new plan combining route restoration and release rollback. Every trial
+   starts from the original snapshot, so the next plan must include the route
+   repair again. Both HTTP and contract checks pass for the combined plan.
+6. Select **Apply plan & verify**. The server checks that the episode, revision,
+   state, and contract still match the tested snapshot. Five fresh requests in
+   the active lab must pass availability and business-contract verification.
+7. Download the experiment JSON and incident report. Inspect the expected totals,
+   returned product IDs, contract version/hash, decision evidence, and final
+   verification. Open history to revisit the saved record.
 
-Follow with healthy and missing-evidence controls. Both should produce no
-recommended change. Restarting the app preserves history but creates a new lab
-episode; old plans remain read-only.
+The three-product contract covers notebook, lamp, and mug. Default three-request
+trials and five-request verification cycle through all three; the notebook
+amount above is one concrete example.
 
-## Adaptive experiment demonstration
+## Show why the budget matters
 
-Start the guided demo again and open **Fix rehearsal**. Select **Adaptive ·
-offline policy**, set the experiment budget to **1**, and run. The route-only
-trial returns HTTP 500: the budget is exhausted and no promotion is offered.
-Increase the budget to **4** and rerun from the unchanged active state. The
-decision trail shows the route repair exposing a pricing exception, followed by
-a combined route repair and rollback. Only two candidates are needed. Apply the
-passing plan and inspect the five fresh verification responses.
+Start the demo again. Set **Experiment budget** to **1** and run the adaptive
+policy. The route repair returns HTTP 200 with incorrect totals; no passing
+plan can be promoted. Increase the ceiling to **4** and rerun against the
+unchanged active state. The offline policy can test the combined repair after
+observing the first trial's price mismatch.
 
-The configured **Adaptive · Mistral agent** uses the same local experiment tools
-and promotion boundary, with the model choosing its plans. Its actual choices
-may differ. [Mistral setup, evaluation, and customer-pilot plan →](MISTRAL_FDE.md)
+For a broader comparison, select **Compare all plans**. Inspect the no-change
+control, each single fix, and the action pairs. Use **Show → Passed** to isolate
+passing plans, then return to **All outcomes** to retain the failed evidence.
 
-The portfolio result is expanded recovery capability on known compound faults,
-with isolation, provenance, and guarded promotion. It is not a claim that an LLM
-invented a fix, that the experiment budget is equal to the one-shot comparator,
-or that the result transfers to production infrastructure.
+## Check the controls and the live-model boundary
+
+Repeat with **Healthy control** and **Missing evidence**. Both should offer no
+recommended mutation. A healthy response must satisfy the contract; unavailable
+diagnostic evidence requires abstention. Restarting the app preserves history
+but creates a new lab episode, so older plans remain read-only.
+
+**Adaptive · Mistral agent** uses the same experiment and approval boundaries,
+with the live model selecting plans. Its decisions may differ from the offline
+reference. The first pinned live smoke exposed provider errors and a compound
+plan that omitted a required prior repair; the recorded result is **1/4 fault
+recoveries**, not a promised successful demo. See the retained evaluation
+before presenting model quality.
+
+[Contract details](SEMANTIC_RECOVERY.md) ·
+[Current semantic evaluation](SEMANTIC_EVALUATION.md) ·
+[Mistral integration and customer-pilot plan](MISTRAL_FDE.md)
+
+The demonstration establishes declared requirements in a local lab. It does not
+establish production rollout safety, long-term reliability, or a reduction in
+real incident resolution time.

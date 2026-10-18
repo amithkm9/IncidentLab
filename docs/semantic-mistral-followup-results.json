@@ -1,0 +1,948 @@
+{
+  "schema_version": 1,
+  "project_version": "0.2.0",
+  "split": "smoke",
+  "manifest": {
+    "name": "incidentlab-semantic-recovery-v1",
+    "contract": {
+      "id": "checkout-response",
+      "version": "1.0.0",
+      "currency": "USD",
+      "expected_totals_cents": {
+        "notebook": 1200,
+        "lamp": 4500,
+        "mug": 850
+      },
+      "required_fields": [
+        "request_id",
+        "sku",
+        "total"
+      ],
+      "additional_fields": false,
+      "total_unit": "major_currency_units",
+      "maximum_total": 1000000000,
+      "monetary_precision": "exact_integer_cents",
+      "duplicate_json_keys": false,
+      "sha256": "f1ed7d7f0f1f097dd0b544ffd683a5aad9b7a0367848c06953673cb67b4690d8"
+    },
+    "scenarios": [
+      {
+        "id": "silent_price_drift",
+        "expected_actions": [
+          "rollback_checkout_release"
+        ],
+        "silent_corruption": true
+      },
+      {
+        "id": "route_and_price_drift",
+        "expected_actions": [
+          "restore_inventory_route",
+          "rollback_checkout_release"
+        ],
+        "silent_corruption": true
+      },
+      {
+        "id": "bad_release",
+        "expected_actions": [
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "route_and_release",
+        "expected_actions": [
+          "restore_inventory_route",
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "healthy",
+        "expected_actions": [],
+        "control": "healthy"
+      },
+      {
+        "id": "telemetry_gap",
+        "expected_actions": [],
+        "control": "telemetry_gap"
+      }
+    ],
+    "splits": {
+      "smoke": [
+        42
+      ],
+      "test": [
+        11,
+        23,
+        37
+      ]
+    },
+    "acceptance_plans": [
+      {
+        "id": "control",
+        "actions": []
+      },
+      {
+        "id": "route",
+        "actions": [
+          "restore_inventory_route"
+        ]
+      },
+      {
+        "id": "rollback",
+        "actions": [
+          "rollback_checkout_release"
+        ]
+      },
+      {
+        "id": "route-and-rollback",
+        "actions": [
+          "restore_inventory_route",
+          "rollback_checkout_release"
+        ]
+      }
+    ],
+    "final_verification_probe_count": 5,
+    "split": "smoke",
+    "seeds": [
+      42
+    ],
+    "strategies": [
+      "adaptive",
+      "mistral"
+    ],
+    "max_experiments": 4,
+    "max_actions": 2,
+    "probe_count": 3
+  },
+  "manifest_sha256": "501066cd2908e905007e2de3d64446ba35762714c796df9360f5e38086e7f329",
+  "provenance": "Paired contract-acceptance comparison with a separately identified live Mistral recovery arm.",
+  "model_strategy_selected": true,
+  "started_at": "2026-10-18T07:56:46.344539+00:00",
+  "completed_at": "2026-10-18T07:56:59.024022+00:00",
+  "elapsed_ms": 12679.68,
+  "environment": {
+    "python": "3.11.17",
+    "platform": "Linux-6.12.54-linuxkit-aarch64-with-glibc2.41",
+    "packages": {
+      "httpx": "0.28.1",
+      "pydantic": "2.14.1",
+      "fastapi": "0.143.3"
+    }
+  },
+  "limitations": [
+    "Six known scenario families and repeated seeds are regression coverage, not independent production incidents or unseen-fault generalization.",
+    "Both acceptance gates inspect identical saved response facts; the comparison does not run an HTTP-only planner or claim equal reasoning quality.",
+    "The four fixed acceptance plans are declared in advance, not selected from ground truth or substituted for policy recommendations.",
+    "The contract checks known SKU identity and expected price cents. It does not establish all business semantics, absence of side effects, or production safety.",
+    "Policy recovery is separate from paired acceptance and requires five fresh contract-verified checkout requests after its own selected plan.",
+    "Known expected remediation labels are used only for denominators and drift checks, never passed to policies or used to repair their choices.",
+    "Failures stay in policy quality denominators; partial provider usage may undercount billable calls. Mistral requires explicit paid-API authorization."
+  ],
+  "summary": {
+    "episodes": 6,
+    "episode_errors": 3,
+    "paired_acceptance": {
+      "attempted_trials": 24,
+      "completed_trials": 24,
+      "failed_or_unverifiable_trials": 0,
+      "status_only_acceptances": 13,
+      "semantic_acceptances": 10,
+      "status_only_acceptance_rate": 0.5417,
+      "semantic_acceptance_rate": 0.4167,
+      "status_only_false_recoveries": 3,
+      "false_recovery_fraction_of_status_acceptances": 0.2308,
+      "recorded_probe_requests": 72,
+      "counterexample_scope": "False recovery means HTTP-only acceptance of the exact same recorded responses that violate the declared checkout contract. It is not an independent test of contract correctness.",
+      "denominator_scope": "Acceptance rates include every planned trial; failed or unverifiable trials are not accepted. The false-recovery fraction is conditional on completed HTTP-only acceptances."
+    },
+    "false_recovery_examples": [
+      {
+        "case_id": "silent_price_drift-42",
+        "trial_id": "control",
+        "actions": [],
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "violating_checks": [
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4600,
+            "observed_sku": "lamp",
+            "request_id": "ce49e82d",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1300,
+            "observed_sku": "notebook",
+            "request_id": "916a313b",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 950,
+            "observed_sku": "mug",
+            "request_id": "0c6dd950",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "silent_price_drift-42",
+        "trial_id": "route",
+        "actions": [
+          "restore_inventory_route"
+        ],
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "violating_checks": [
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4600,
+            "observed_sku": "lamp",
+            "request_id": "d4e8f13f",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1300,
+            "observed_sku": "notebook",
+            "request_id": "66025a4a",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 950,
+            "observed_sku": "mug",
+            "request_id": "e5f59c09",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          }
+        ]
+      },
+      {
+        "case_id": "route_and_price_drift-42",
+        "trial_id": "route",
+        "actions": [
+          "restore_inventory_route"
+        ],
+        "statuses": [
+          200,
+          200,
+          200
+        ],
+        "violating_checks": [
+          {
+            "sku": "lamp",
+            "expected_total_cents": 4500,
+            "observed_total_cents": 4600,
+            "observed_sku": "lamp",
+            "request_id": "2bfd0412",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "notebook",
+            "expected_total_cents": 1200,
+            "observed_total_cents": 1300,
+            "observed_sku": "notebook",
+            "request_id": "96772643",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          },
+          {
+            "sku": "mug",
+            "expected_total_cents": 850,
+            "observed_total_cents": 950,
+            "observed_sku": "mug",
+            "request_id": "5a555d7b",
+            "http_status": 200,
+            "evaluated": true,
+            "passed": false,
+            "violations": [
+              "price_mismatch"
+            ]
+          }
+        ]
+      }
+    ],
+    "policy_recovery": {
+      "episodes": 6,
+      "episode_errors": 3,
+      "fault_episodes": 4,
+      "single_fault_episodes": 2,
+      "compound_fault_episodes": 2,
+      "control_episodes": 2,
+      "telemetry_gap_controls": 1,
+      "strategies": {
+        "adaptive": {
+          "label": "Offline evidence-adaptive deterministic policy",
+          "uses_model": false,
+          "completed": 6,
+          "errors": 0,
+          "verified_recoveries": 4,
+          "recovery_rate": 1.0,
+          "single_fault_recoveries": 2,
+          "single_fault_recovery_rate": 1.0,
+          "compound_fault_recoveries": 2,
+          "compound_fault_recovery_rate": 1.0,
+          "controls_with_no_action": 2,
+          "control_no_action_rate": 1.0,
+          "telemetry_gap_abstention_rate": 1.0,
+          "candidate_experiments": 6,
+          "completed_candidate_experiments": 6,
+          "recorded_started_candidate_experiments": 6,
+          "control_experiments": 6,
+          "recorded_experiment_requests": 36,
+          "final_verification_requests": 30,
+          "median_episode_ms": 351.77,
+          "total_episode_ms": 2159.97,
+          "provider_usage": {
+            "models": [],
+            "recorded_api_calls": 0,
+            "recorded_input_tokens": 0,
+            "recorded_output_tokens": 0,
+            "estimated_cost_usd": 0,
+            "cost_complete": true,
+            "notes": [
+              "No model calls. Offline evidence-driven policy."
+            ],
+            "accounting_scope": "Recorded provider attempts and reported tokens only; failed or unreported responses may have unobserved billable usage."
+          }
+        },
+        "mistral": {
+          "label": "Live Mistral evidence-adaptive policy",
+          "uses_model": true,
+          "completed": 3,
+          "errors": 3,
+          "verified_recoveries": 1,
+          "recovery_rate": 0.25,
+          "single_fault_recoveries": 1,
+          "single_fault_recovery_rate": 0.5,
+          "compound_fault_recoveries": 0,
+          "compound_fault_recovery_rate": 0.0,
+          "controls_with_no_action": 2,
+          "control_no_action_rate": 1.0,
+          "telemetry_gap_abstention_rate": 1.0,
+          "candidate_experiments": 4,
+          "completed_candidate_experiments": 4,
+          "recorded_started_candidate_experiments": 4,
+          "control_experiments": 6,
+          "recorded_experiment_requests": 30,
+          "final_verification_requests": 15,
+          "median_episode_ms": 251.5,
+          "total_episode_ms": 7579.3,
+          "provider_usage": {
+            "models": [
+              "mistral-small-2603"
+            ],
+            "recorded_api_calls": 7,
+            "recorded_input_tokens": 28951,
+            "recorded_output_tokens": 870,
+            "estimated_cost_usd": null,
+            "cost_complete": false,
+            "notes": [
+              "Control required no model calls.",
+              "Prices are not configured; observed provider token counts are reported without an invented cost.",
+              "Provider usage is incomplete; token counts cover reported responses only. Failed calls may also incur charges."
+            ],
+            "accounting_scope": "Recorded provider attempts and reported tokens only; failed or unreported responses may have unobserved billable usage."
+          }
+        }
+      },
+      "offline_adaptive_vs_ordered_recovery_percentage_points": null,
+      "timing_scope": "Per arm: fresh lab construction, injection, policy, application/five fresh verification requests, and cleanup. Failed attempts remain in totals; medians cover completed arms."
+    }
+  },
+  "artifact_scope": "Compact export of measured report; full generated episode traces remain in the ignored artifacts directory. Regenerate with the documented CLI.",
+  "case_results": [
+    {
+      "case_id": "silent_price_drift-42",
+      "scenario_id": "silent_price_drift",
+      "seed": 42,
+      "strategies": {
+        "adaptive": {
+          "completed": true,
+          "recovered": true,
+          "no_action": false,
+          "actions": [
+            "rollback_checkout_release"
+          ],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 1,
+            "completed_experiments": 1,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "verified_plan"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "No model calls. Offline evidence-driven policy."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [
+                "rollback_checkout_release"
+              ],
+              "hypothesis": "Observed HTTP 200 with a total that violates the checkout contract; test a release rollback and recheck the price.",
+              "outcome": "passed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": true
+            }
+          ]
+        },
+        "mistral": {
+          "completed": true,
+          "recovered": true,
+          "no_action": false,
+          "actions": [
+            "rollback_checkout_release"
+          ],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 1,
+            "completed_experiments": 1,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "verified_plan"
+          },
+          "provider_usage": {
+            "model": "mistral-small-2603",
+            "input_tokens": 3878,
+            "output_tokens": 328,
+            "api_calls": 1,
+            "estimated_cost_usd": null,
+            "cost_note": "Prices are not configured; observed provider token counts are reported without an invented cost."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [
+                "rollback_checkout_release"
+              ],
+              "hypothesis": "Rolling back the checkout release to the known-good version will restore correct price calculations, eliminating the observed price mismatches.",
+              "outcome": "passed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "route_and_price_drift-42",
+      "scenario_id": "route_and_price_drift",
+      "seed": 42,
+      "strategies": {
+        "adaptive": {
+          "completed": true,
+          "recovered": true,
+          "no_action": false,
+          "actions": [
+            "restore_inventory_route",
+            "rollback_checkout_release"
+          ],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 2,
+            "completed_experiments": 2,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "verified_plan"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "No model calls. Offline evidence-driven policy."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [
+                "restore_inventory_route"
+              ],
+              "hypothesis": "Observed inventory HTTP 404; test the known-good inventory route.",
+              "outcome": "failed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": false
+            },
+            {
+              "step": 2,
+              "actions": [
+                "restore_inventory_route",
+                "rollback_checkout_release"
+              ],
+              "hypothesis": "Observed HTTP 200 with a total that violates the checkout contract; test a release rollback and recheck the price. Retain the previously tested fix to address the newly exposed fault.",
+              "outcome": "passed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": true
+            }
+          ]
+        },
+        "mistral": {
+          "completed": false,
+          "recovered": false,
+          "no_action": false,
+          "actions": [],
+          "error": "RuntimeError: model comparison arm failed; inspect safe report metadata",
+          "result_error": {
+            "code": "provider_error",
+            "message": "Planner request failed. No plan is authorized by this rehearsal.",
+            "provider_failure": {
+              "category": "rate_limited",
+              "status_code": 429,
+              "retry_after_seconds": null
+            }
+          },
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 3,
+            "completed_experiments": 3,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "provider_error"
+          },
+          "provider_usage": {
+            "model": "mistral-small-2603",
+            "input_tokens": 25073,
+            "output_tokens": 542,
+            "api_calls": 4,
+            "estimated_cost_usd": null,
+            "cost_note": "Provider usage is incomplete; token counts cover reported responses only. Failed calls may also incur charges."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [
+                "restore_inventory_route"
+              ],
+              "hypothesis": "Setting the checkout's inventory request URL to the known-good inventory route will resolve the upstream_http_error and allow semantic checks to pass.",
+              "outcome": "failed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": false
+            },
+            {
+              "step": 2,
+              "actions": [
+                "restore_catalog_path"
+              ],
+              "hypothesis": "Pointing checkout at the original catalog database file will restore correct prices and resolve the price_mismatch violations observed in the previous trial.",
+              "outcome": "failed",
+              "statuses": [
+                502,
+                502,
+                502
+              ],
+              "semantic_passed": false
+            },
+            {
+              "step": 3,
+              "actions": [
+                "restore_inventory_route",
+                "restore_catalog_path"
+              ],
+              "hypothesis": "Combining the restoration of the inventory route and the catalog path will resolve both the upstream_http_error and price_mismatch violations, restoring full health and semantic correctness.",
+              "outcome": "failed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": false
+            },
+            {
+              "step": 4,
+              "actions": [],
+              "hypothesis": "Planner request failed. No plan is authorized by this rehearsal.",
+              "outcome": "provider_error",
+              "statuses": [],
+              "semantic_passed": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bad_release-42",
+      "scenario_id": "bad_release",
+      "seed": 42,
+      "strategies": {
+        "adaptive": {
+          "completed": true,
+          "recovered": true,
+          "no_action": false,
+          "actions": [
+            "rollback_checkout_release"
+          ],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 1,
+            "completed_experiments": 1,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "verified_plan"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "No model calls. Offline evidence-driven policy."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [
+                "rollback_checkout_release"
+              ],
+              "hypothesis": "Observed pricing TypeError; test a checkout release rollback.",
+              "outcome": "passed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": true
+            }
+          ]
+        },
+        "mistral": {
+          "completed": false,
+          "recovered": false,
+          "no_action": false,
+          "actions": [],
+          "error": "RuntimeError: model comparison arm failed; inspect safe report metadata",
+          "result_error": {
+            "code": "provider_error",
+            "message": "Planner request failed. No plan is authorized by this rehearsal.",
+            "provider_failure": {
+              "category": "rate_limited",
+              "status_code": 429,
+              "retry_after_seconds": null
+            }
+          },
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 0,
+            "completed_experiments": 0,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "provider_error"
+          },
+          "provider_usage": {
+            "model": "mistral-small-2603",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 1,
+            "estimated_cost_usd": null,
+            "cost_note": "Provider usage is incomplete; token counts cover reported responses only. Failed calls may also incur charges."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [],
+              "hypothesis": "Planner request failed. No plan is authorized by this rehearsal.",
+              "outcome": "provider_error",
+              "statuses": [],
+              "semantic_passed": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "route_and_release-42",
+      "scenario_id": "route_and_release",
+      "seed": 42,
+      "strategies": {
+        "adaptive": {
+          "completed": true,
+          "recovered": true,
+          "no_action": false,
+          "actions": [
+            "restore_inventory_route",
+            "rollback_checkout_release"
+          ],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 2,
+            "completed_experiments": 2,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "verified_plan"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "No model calls. Offline evidence-driven policy."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [
+                "restore_inventory_route"
+              ],
+              "hypothesis": "Observed inventory HTTP 404; test the known-good inventory route.",
+              "outcome": "failed",
+              "statuses": [
+                500,
+                500,
+                500
+              ],
+              "semantic_passed": false
+            },
+            {
+              "step": 2,
+              "actions": [
+                "restore_inventory_route",
+                "rollback_checkout_release"
+              ],
+              "hypothesis": "Observed pricing TypeError; test a checkout release rollback. Retain the previously tested fix to address the newly exposed fault.",
+              "outcome": "passed",
+              "statuses": [
+                200,
+                200,
+                200
+              ],
+              "semantic_passed": true
+            }
+          ]
+        },
+        "mistral": {
+          "completed": false,
+          "recovered": false,
+          "no_action": false,
+          "actions": [],
+          "error": "RuntimeError: model comparison arm failed; inspect safe report metadata",
+          "result_error": {
+            "code": "provider_error",
+            "message": "Planner request failed. No plan is authorized by this rehearsal.",
+            "provider_failure": {
+              "category": "rate_limited",
+              "status_code": 429,
+              "retry_after_seconds": null
+            }
+          },
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 0,
+            "completed_experiments": 0,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "provider_error"
+          },
+          "provider_usage": {
+            "model": "mistral-small-2603",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 1,
+            "estimated_cost_usd": null,
+            "cost_note": "Provider usage is incomplete; token counts cover reported responses only. Failed calls may also incur charges."
+          },
+          "decision_trace": [
+            {
+              "step": 1,
+              "actions": [],
+              "hypothesis": "Planner request failed. No plan is authorized by this rehearsal.",
+              "outcome": "provider_error",
+              "statuses": [],
+              "semantic_passed": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "healthy-42",
+      "scenario_id": "healthy",
+      "seed": 42,
+      "strategies": {
+        "adaptive": {
+          "completed": true,
+          "recovered": false,
+          "no_action": true,
+          "actions": [],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 0,
+            "completed_experiments": 0,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "control_healthy"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "No model calls. Offline evidence-driven policy."
+          },
+          "decision_trace": []
+        },
+        "mistral": {
+          "completed": true,
+          "recovered": false,
+          "no_action": true,
+          "actions": [],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 0,
+            "completed_experiments": 0,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "control_healthy"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "Control required no model calls."
+          },
+          "decision_trace": []
+        }
+      }
+    },
+    {
+      "case_id": "telemetry_gap-42",
+      "scenario_id": "telemetry_gap",
+      "seed": 42,
+      "strategies": {
+        "adaptive": {
+          "completed": true,
+          "recovered": false,
+          "no_action": true,
+          "actions": [],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 0,
+            "completed_experiments": 0,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "missing_telemetry"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "No model calls. Offline evidence-driven policy."
+          },
+          "decision_trace": []
+        },
+        "mistral": {
+          "completed": true,
+          "recovered": false,
+          "no_action": true,
+          "actions": [],
+          "error": null,
+          "result_error": null,
+          "budget": {
+            "max_experiments": 4,
+            "used_experiments": 0,
+            "completed_experiments": 0,
+            "max_elapsed_seconds": 120,
+            "stop_reason": "missing_telemetry"
+          },
+          "provider_usage": {
+            "model": null,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "api_calls": 0,
+            "estimated_cost_usd": 0,
+            "cost_note": "Control required no model calls."
+          },
+          "decision_trace": []
+        }
+      }
+    }
+  ]
+}
