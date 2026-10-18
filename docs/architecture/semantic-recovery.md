@@ -12,7 +12,7 @@ claim about live Mistral performance.
 
 ## The requirement stays independent of the bug
 
-[`contracts.py`](../../src/incidentlab/contracts.py) defines the immutable
+[`contracts.py`](../../src/incidentlab/domain/contracts.py) defines the immutable
 `checkout-response` contract, version `1.0.0`, separately from the SQLite catalog
 and deployed pricing code. Its expected totals are notebook **$12.00**, lamp
 **$45.00**, and mug **$8.50**, denominated in USD. A faulty application response
@@ -77,47 +77,22 @@ plan, contract metadata, and provider usage. Operator promotion still requires a
 current episode, revision, and snapshot fingerprint. Five fresh requests in the
 active lab must then pass both checks.
 
-## Try the workflow
+## Demonstration and evaluation
 
-1. Start the app and select **Try the silent-failure demo**.
-2. Open **Fix rehearsal** and use **Adaptive · offline policy**, a two-action
-   plan limit, and the default four-experiment budget.
-3. Inspect the route-only trial: HTTP requests succeed but the price checks fail.
-   Follow the observed mismatch into the next combined plan.
-4. Select **Apply plan & verify** and inspect the fresh contract checks. Download
-   the experiment JSON to retain the complete record.
+The [README walkthrough](../../README.md#try-the-demo) covers the route-only
+false recovery, combined repair, optional Recovery Proof, and fresh verification.
+It also includes budget experiments and no-action controls.
 
-The offline workflow needs no API key. **Adaptive · Mistral agent** uses the
-configured server-side Mistral integration. Live model evaluation is separate
-from the deterministic demonstration; this document does not assign it a score.
-
-## Reproduce the comparison
-
-The semantic evaluator separates two questions: would an HTTP-only acceptance
-rule mistakenly declare recovery, and does the selected policy actually repair
-the incident? Acceptance rules score the **same saved responses**. Policy arms
-use separate source labs and fresh post-fix verification.
-
-```sh
-docker compose --profile eval run --build --rm eval \
-  incidentlab-semantic-eval --split test --strategies adaptive \
-  --max-experiments 4 --output artifacts/semantic-test.json
-```
-
-The manifest includes silent price drift, its masked compound variant, explicit
-pricing failures, and healthy/missing-evidence controls. Generated artifacts
-record the contract, manifest hash, per-trial checks, failures, policy decisions,
-request budgets, timing, and provider usage. A live Mistral comparison additionally
-requires credentials and the explicit `--allow-paid-api` flag. Report its actual
-artifact and limitations separately from offline results.
-
-See the [recorded offline and live measurements](../evaluation/SEMANTIC_EVALUATION.md),
-including unsuccessful model attempts and provider failures.
+The [semantic evaluation protocol](../evaluation/semantic-evaluation.md)
+separately measures HTTP-only versus contract-aware acceptance on identical
+saved responses and policy recovery in independent labs. It contains commands,
+manifest details, denominators, provider usage, and retained unsuccessful live
+runs. These results do not assign offline policy performance to Mistral.
 
 This verifies the declared rules for a small local HTTP/SQLite application.
 Undeclared business requirements, long-term reliability, external side effects,
 and production rollout safety remain outside that result. A versioned contract
 is only as useful as the requirements it accurately represents.
 
-[Project overview](../../README.md) · [Adaptive recovery design](../career/MISTRAL_FDE.md) ·
-[Architecture](ARCHITECTURE.md)
+[Project overview](../../README.md) · [Adaptive recovery design](../career/mistral-fde.md) ·
+[Architecture](overview.md)

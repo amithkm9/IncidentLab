@@ -36,14 +36,14 @@ are legitimate verification inputs, independent of the faulty pricing code.
 The `checkout-response` contract is versioned and hashed. It checks product
 identity, exact monetary totals, response fields, and strict JSON structure.
 Its metadata travels with evidence and contributes to the promotion fingerprint.
-[Contract design and implemented boundaries →](../architecture/SEMANTIC_RECOVERY.md)
+[Contract design and implemented boundaries →](../architecture/semantic-recovery.md)
 
 ## Where Mistral fits
 
 | Product/capability | Useful role in this project | Status |
 | --- | --- | --- |
 | Mistral Conversations + local function tools | Choose recovery experiments from measured HTTP and contract evidence; retain results in the next context | Implemented; first pinned live smoke retained for error analysis |
-| Mistral chat completion + read-only function calling | Diagnose the first visible fault and cite collected observations | Existing adapter; live quality unmeasured |
+| Mistral chat completion + read-only function calling | Diagnose the first visible fault and cite collected observations | Existing adapter; no published live benchmark for chat investigation |
 | Mistral Document AI / OCR | Import a customer's scanned runbooks with page provenance, then evaluate whether that context improves decisions | Proposed next customer-data integration |
 | Vibe + an MCP integration | Let an engineer inspect the lab from their existing assistant while keeping mutation approval in IncidentLab | Proposed workflow integration |
 | Forge / model customization | Improve a demonstrated recurring failure using reviewed training data and held-out evaluation | Deferred until error analysis justifies it |
@@ -99,7 +99,7 @@ HTTP-only checks accepted 39 trials; nine of those were false recoveries under
 the independent contract. Contract checks accepted 30. The separate offline
 adaptive arm recovered 12/12 fault episodes with 18 candidate experiments and
 preserved 6/6 no-action controls.
-[Semantic protocol, recorded results, and limits →](../evaluation/SEMANTIC_EVALUATION.md)
+[Semantic protocol, recorded results, and limits →](../evaluation/semantic-evaluation.md)
 
 The earlier adaptive-versus-ordered comparison remains useful historical
 evidence. On October 17, before semantic verification, the offline policy
@@ -107,7 +107,7 @@ recovered 24/24 fault episodes in 33 candidates; fixed-order search recovered
 12/24 in 78, and both preserved 6/6 controls. Its four-candidate ceiling prevented
 that fixed order from reaching its fifth single action or any pair. The result
 does not establish superiority over a competent engineer or another LLM.
-[Historical protocol and limitations →](../evaluation/ADAPTIVE_EVALUATION.md)
+[Historical protocol and limitations →](../evaluation/adaptive-evaluation.md)
 
 After credentials and model access are ready, explicitly enable paid model calls:
 
@@ -136,7 +136,7 @@ clarify tool effects and snapshot semantics, then measure a fresh pinned run.
 The follow-up added explicit full-plan context and safe provider diagnostics.
 It also recovered 1/4 faults and preserved both controls, but recorded three
 HTTP 429 errors. It did not demonstrate a recovery-quality improvement.
-[Retained live evidence and subsequent comparisons →](../evaluation/SEMANTIC_EVALUATION.md)
+[Retained live evidence and subsequent comparisons →](../evaluation/semantic-evaluation.md)
 
 ## A credible customer pilot
 
@@ -182,4 +182,4 @@ Current boundaries: a local HTTP/SQLite simulator, a finite action allowlist,
 known fault families, sampled HTTP and declared-contract verification, and no customer trial.
 No production recovery, reduced MTTR, or first-ever novelty claim is made.
 
-[Project overview](../../README.md) · [Architecture](../architecture/ARCHITECTURE.md) · [CV wording](CV.md)
+[Project overview](../../README.md) · [Architecture](../architecture/overview.md) · [CV wording](cv.md)

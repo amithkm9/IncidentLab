@@ -1,4 +1,8 @@
-# Project decision
+# Original project decision
+
+This historical record captures the initial scope and rationale. See the
+[README](../../README.md) and [status](../../STATUS.md) for the implemented
+features and subsequent evidence.
 
 Build IncidentLab: an evidence-grounded incident investigation assistant for a
 small engineering team. The product takes an alert, inspects live telemetry and

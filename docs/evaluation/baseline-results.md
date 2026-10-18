@@ -48,7 +48,9 @@ Frozen manifest SHA-256:
 2907976c098e88c1a3aaa342c34b655ab01e6982f402cdde2c6b4b89b64bfceb
 ```
 
-The automated suite separately passed 39 tests, including contract tests with
-mocked Mistral responses. Live Mistral connectivity and performance remain
-unverified because no API key was configured. See [EVALUATION.md](EVALUATION.md)
-for definitions and the next comparison protocol.
+At the time of this run, the automated suite separately passed 39 tests,
+including provider contract tests with mocked Mistral responses. Live Mistral
+connectivity and performance had not yet been checked because no key was
+configured. Later Conversations measurements are retained in the
+[semantic evaluation](semantic-evaluation.md). See the
+[baseline methodology](baseline-methodology.md) for this run's definitions.

@@ -1,7 +1,7 @@
 # Contributing to IncidentLab
 
 Start with the [development guide](docs/development/README.md) and
-[architecture](docs/architecture/ARCHITECTURE.md). Keep each change focused on a
+[architecture](docs/architecture/overview.md). Keep each change focused on a
 concrete behavior, with evidence that it works and clear limits on what it proves.
 
 ## Setup and checks
@@ -27,7 +27,7 @@ distributions. `make format` deliberately rewrites formatting; review its diff.
 | Frontend | `frontend/src/`, `frontend/index.html`, `frontend/public/` | Vite writes `frontend/dist/`; do not edit it manually |
 | Backend | `src/incidentlab/` | Python wheels bundle the built UI at `incidentlab/web` |
 | Evaluators | `src/incidentlab/evaluation/` and its manifests | New full runs write to ignored `artifacts/` |
-| Tests | `tests/core/`, `tests/api/`, `tests/evaluation/`, frontend tests beside their modules | Test caches and coverage remain untracked |
+| Tests | backend tests grouped by package, frontend tests beside their modules | Test caches and coverage remain untracked |
 | Documentation | The relevant category under `docs/` | Keep relative links valid after moves |
 
 Update dependency declarations and their lockfiles together. Use strict

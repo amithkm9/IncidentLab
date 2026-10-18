@@ -1,164 +1,51 @@
 # IncidentLab
 
-**Understand the failure. Rehearse the fix. Verify the business outcome.**
+**A working checkout is more than an HTTP 200.**
 
-IncidentLab is a local incident workbench that checks whether checkout is both
-available and correct. It investigates failures, tests recovery plans in isolated
-copies, and verifies returned prices and product IDs before calling a fix successful.
+IncidentLab is a local incident-response workbench. It investigates a deliberately
+faulty checkout service, rehearses fixes in isolated copies, and verifies the
+returned product and price before declaring recovery. An optional Mistral agent
+can choose experiments; independent checks and an operator control what gets applied.
 
-![A route repair restores HTTP 200 but exposes an incorrect price; the complete plan must pass an independent business contract before operator-approved recovery](docs/assets/semantic-recovery.svg)
+[Start the app](#quick-start) · [Try the demo](#try-the-demo) ·
+[Explore the architecture](#architecture) · [Inspect the evidence](#measured-results)
 
-[Run locally](#run-locally) · [See the workflow](#from-incident-to-recovery) ·
-[Explore the architecture](#how-it-works) · [Read the results](#measured-results)
+![Recorded dashboard separating HTTP availability from incorrect checkout prices](docs/assets/semantic-console.png)
 
-![Current IncidentLab workbench showing separate HTTP and business-contract health, expected-versus-observed prices, and the silent-failure recovery workflow](docs/assets/semantic-console.png)
+*Recorded contract-aware dashboard. This capture predates the TypeScript migration;
+the current build also includes Recovery Proof.*
 
-*The contract-aware workbench, captured from the running app.*
+## Contents
 
-## From incident to recovery
+- [What you can use it for](#what-you-can-use-it-for)
+- [Quick start](#quick-start)
+- [Try the demo](#try-the-demo)
+- [Architecture](#architecture)
+- [Recovery Proof](#recovery-proof)
+- [Measured results](#measured-results)
+- [Run the checks](#run-the-checks)
+- [Security and scope](#security-and-scope)
+- [Repository map](#repository-map)
 
-A broken inventory route can hide an overcharge. Repairing the route returns
-HTTP 200 while a notebook costs **$13.00 instead of the required $12.00**. The
-versioned checkout contract rejects that partial repair and gives the planner
-concrete evidence for the next experiment.
+## What you can use it for
 
-Click **Try the silent-failure demo**, then run **Adaptive · offline policy** in
-**Fix rehearsal**. Inspect the failed price check, compare the combined route
-repair and release rollback, then approve the measured plan. Five fresh requests
-must pass both HTTP and business-contract checks.
-[Follow the demo →](docs/guides/DEMO.md) · [Understand semantic recovery →](docs/architecture/SEMANTIC_RECOVERY.md)
-
-| What you can do | What makes it useful |
+| Use case | What the workbench provides |
 | --- | --- |
-| Follow a diagnosis into its evidence | Inspect the actual logs, health responses, metrics, and changes behind a finding. |
-| Detect a false recovery | Compare returned totals and product IDs with an independent, versioned contract—even when HTTP succeeds. |
-| Compare fixes before changing the lab | Use bounded adaptive experiments or compare all five individual fixes and ten pairs against a no-action control. |
-| Test what each fix contributes | Run Recovery Proof: replay the full plan, remove one action at a time, and inspect which contract checks fail. |
-| Approve a measured recovery plan | Promote a passing tested plan only while its source state and contract are still current. |
-| Keep an inspectable incident record | Reopen SQLite-backed history and export evidence, experiments, and verification as JSON or Markdown. |
+| Practice incident investigation | Reproducible failures, real HTTP services, logs, metrics, health checks, and cited findings. |
+| Catch a false recovery | An independent checkout contract checks products and exact prices, including HTTP 200 responses with wrong totals. |
+| Compare repair strategies | An offline policy, bounded Mistral experiments, or exhaustive comparison of five single fixes and ten pairs. |
+| Explain a proposed repair | Recovery Proof removes each action in turn and measures whether the plan still works. |
+| Review an agent integration | Retained failures, tool decisions, request budgets, provider usage, and reproducible evaluation protocols. |
+| Keep an incident record | SQLite history, JSON evidence and proof exports, and Markdown incident reports. |
 
-Twelve scenarios cover route drift, dependency outages, tight timeouts, missing
-catalogs, explicit and silent pricing regressions, **four compound failures**,
-and healthy or missing-evidence controls. The offline workflow needs no API key;
-Mistral adds bounded investigation and adaptive experiment selection.
+The lab has **12 scenarios**: six single faults, four compound failures, and
+healthy/missing-evidence controls. Faults include route drift, dependency outages,
+tight timeouts, missing catalogs, and explicit or silent pricing regressions.
+The complete offline workflow needs **no API key**.
 
-## Recovery Proof: what happens if a fix is removed?
+## Quick start
 
-After a passing rehearsal, select **Explain why each fix is needed**. Recovery
-Proof measures the full plan, an unchanged control, and each action-removal
-variant from the same snapshot. It uses at most **36 checkout requests** and
-**zero model calls**; the active lab stays unchanged.
-
-![Illustrated Recovery Proof comparing a full route-and-rollback plan with no changes and each action removed, using isolated copies and independent contract checks](docs/assets/recovery-proof.svg)
-
-In the [recorded guided run](docs/evaluation/results/recovery-proof-route-price.json),
-four trials completed **36 responses** with the source unchanged. The full plan
-passed; removing the route fix returned HTTP 502, while removing rollback
-returned nine HTTP 200 responses with nine incorrect prices. No model calls
-were made. This is one measured local example.
-
-The result can support an action's necessity within this measured plan, expose
-a redundant action, or fail to support promotion. It does not establish a global
-minimum or production safety. The exported digest is unsigned, and the server
-rechecks current authority before any promotion. Proof is optional; once run,
-its failure cannot be bypassed on the same rehearsal.
-[Measurement, integrity, and authority boundaries →](docs/architecture/RECOVERY_PROOF.md)
-
-## Adaptive recovery with Mistral
-
-The planner chooses an experiment, observes its measured result, and uses newly
-exposed failure evidence to choose the next plan. Contract violations supply
-expected and observed amounts, product IDs, and evidence citations. Each trial
-starts from the same source snapshot, so a complete plan must retain every
-repair it needs.
-
-In **Fix rehearsal**, select **Adaptive · offline policy** to try it without an
-API key, or **Adaptive · Mistral agent** after configuring the server key. The
-Mistral mode uses the Conversations API with local function execution. Each run
-records its experiment decisions, budget, measured outcomes, and provider usage.
-Failed or invalid model decisions never fall back to an offline success.
-
-The independent verifier decides whether a measured plan passed. The model can
-choose an allowed experiment or abstain; it cannot waive contract failures or
-promote a change. [Integration, evaluation, and customer-pilot approach →](docs/career/MISTRAL_FDE.md)
-
-## How it works
-
-The investigator reads evidence. The rehearsal engine tests changes in temporary
-copies. An explicit operator action is required to apply the selected plan to
-the active lab.
-
-![Architecture showing the browser, FastAPI, read-only investigator, real HTTP and SQLite lab, isolated fix rehearsal, guarded promotion, and persistent history](docs/assets/architecture.svg)
-
-**Stack:** Python 3.11+ · FastAPI · SQLite · real HTTP services · strict
-TypeScript / Vite / CSS · BM25 runbooks · optional Mistral API.
-
-The lab is a purpose-built local application. Each rehearsal copies its current
-state, including partial repairs; it does not use the injected scenario label to
-choose a fix. The source lab stays unchanged during experiments. Before
-promotion, the API checks the episode, revision, and a SHA-256 state fingerprint
-that includes the contract definition. Fresh verification checks both HTTP
-availability and the declared business rules.
-
-[Architecture, component map, and design boundaries →](docs/architecture/ARCHITECTURE.md)
-
-## Measured results
-
-The new [semantic-recovery evaluation](docs/evaluation/SEMANTIC_EVALUATION.md) scores
-HTTP-only and contract-aware acceptance against the **same recorded responses**,
-then separately measures selected recovery plans in independent labs. Failed
-cases stay in the denominators, with decisions, errors, requests, latency, and
-provider usage retained.
-
-In the recorded offline test, **72 paired trials** produced **39 HTTP-only
-acceptances**, of which **nine were false recoveries** under the contract
-(23.08%). Contract checks accepted 30. Separately, the offline adaptive policy
-recovered **12/12 fault episodes**, preserved **6/6 no-action controls**, and
-used **18 candidate experiments**. These are controlled known-scenario results,
-not model accuracy or production incidents.
-
-The first live smoke run with pinned **`mistral-small-2603`** recovered **1/4
-fault cases**, preserved **2/2 no-action controls**, and recorded **two provider
-errors**. A compound case exposed a planning error: the model omitted a repair
-needed by the original snapshot. A follow-up with clearer experiment context also recovered **1/4 faults** and
-recorded **three HTTP 429 failures**. Both runs are retained; no live quality
-improvement or production readiness is claimed.
-[Run details and subsequent evidence →](docs/evaluation/SEMANTIC_EVALUATION.md)
-
-<details>
-<summary><strong>Historical offline results · October 17, 2026 · HTTP-status recovery</strong></summary>
-
-![Offline controlled comparison: recovery rises from 62.5 percent with one proposed fix to 100 percent with rehearsal; nine compound cases recovered and six no-action controls preserved](docs/assets/benchmark.svg)
-
-![Historical rehearsal screen showing measured HTTP outcomes before business-contract checks were introduced](docs/assets/rehearsal.png)
-
-*Earlier HTTP-only comparison screen; current runs also expose business-contract checks.*
-
-The recorded comparison contains **30 cases: 24 faults and six controls** across
-ten known scenarios and three seeds. Rehearsal recovered all nine compound-fault
-cases that the one-shot baseline left partially repaired.
-
-This improvement uses a larger budget: **405 candidate experiments and 1,305
-rehearsal requests**. Median complete episode time was 15.72 ms for the baseline
-and 1,717.40 ms for rehearsal. These are repeated, controlled offline cases—not
-Mistral accuracy, independent production incidents, or a claim of reduced MTTR.
-Recovery in this historical run meant five fresh HTTP 200 responses. These
-artifacts predate business-contract checks and the two silent-price scenarios.
-
-A separate historical offline adaptive run recovered **24/24 fault episodes
-with 33 candidates**, including nine compound cases, and preserved **6/6
-no-action controls**. It tested an engineered known-error policy against a simple
-fixed-order comparator. [Adaptive protocol and limits →](docs/evaluation/ADAPTIVE_EVALUATION.md)
-
-[Protocol and recorded results](docs/evaluation/REHEARSAL_EVALUATION.md) ·
-[Machine-readable summary](docs/evaluation/results/rehearsal-results.json) ·
-[CV-ready engineering claims](docs/career/CV.md)
-
-</details>
-
-## Run locally
-
-With Docker Desktop or Docker Engine and Compose:
+Install Docker with Compose, then:
 
 ```sh
 git clone https://github.com/amithkm9/IncidentLab.git
@@ -166,77 +53,332 @@ cd IncidentLab
 docker compose up --build -d app
 ```
 
-Open **<http://127.0.0.1:8000>**. No API key is needed for the offline workflow.
-Stop the app with `docker compose stop app`. The named `lab-runtime` volume
-preserves saved history across restarts.
+Open **<http://127.0.0.1:8000>**. Docker builds both the TypeScript frontend and
+Python backend. Stop with `docker compose stop app`; the `lab-runtime` volume
+preserves history. API documentation is available at `/docs`.
 
 <details>
-<summary><strong>Develop locally with Python, TypeScript, and uv.</strong></summary>
+<summary><strong>Local development: Python, TypeScript, and uv</strong></summary>
 
 Requires Python 3.11+, Node.js 24+, npm, and [uv](https://docs.astral.sh/uv/).
 
 ```sh
 make bootstrap
-uv run incidentlab
+make run
 ```
 
-The process must be able to bind loopback HTTP ports. One app process owns one
-lab, so run a single worker. Use `uv run incidentlab --port 8001` if port 8000 is
-occupied.
+Bootstrap runs the locked npm install, builds `frontend/dist`, then installs the
+locked Python development dependencies. Build the frontend before installing or
+packaging Python: the wheel includes that same UI.
 
-Bootstrap installs the locked frontend dependencies, builds `frontend/dist`,
-then installs the Python package. The build is also included in Python wheels
-and Docker images. See the [development guide](docs/development/README.md) for
-the Vite development server and quality checks.
+For Vite's development server, keep the backend running and use a second terminal:
+
+```sh
+make dev
+```
+
+Open the URL Vite prints; `/api` requests proxy to the backend at port 8000.
+One app process owns one lab, so use a single worker. If port 8000 is occupied,
+use `uv run incidentlab --port 8001` and adjust the Vite proxy when needed.
+The host must permit loopback HTTP ports. [Setup troubleshooting](docs/development/README.md#troubleshooting-setup)
 
 </details>
 
 <details>
-<summary><strong>Enable Mistral investigation and adaptive rehearsal.</strong></summary>
+<summary><strong>Optional live Mistral setup, budgets, and cost accounting</strong></summary>
 
-Export `MISTRAL_API_KEY` in the server environment, then restart. For Docker
-Compose, copy `.env.example` to `.env` and fill it in locally. Keep that file
-untracked. The Python CLI does not automatically load `.env`.
+For Compose, copy `.env.example` to `.env`, set `MISTRAL_API_KEY` locally, and
+restart the app. Keep `.env` untracked. For the Python CLI, export the key in the
+server environment; the CLI does not load `.env` automatically.
 
-`MISTRAL_MODEL` defaults to `mistral-small-latest`. Pin an available provider
-version for repeatable comparisons. Credentials stay on the server; the browser
-receives only a configured/not-configured flag. Live model use makes paid API
-calls. Live smoke results and offline results are reported separately above.
+`MISTRAL_MODEL` defaults to `mistral-small-latest`. Pin an available model version
+for a comparison. Choose **Adaptive · Mistral agent** in Fix rehearsal. This makes
+paid provider requests. Credentials stay on the server; the browser receives
+only the configuration flag and model name.
 
-[Investigation modes, budgets, and cost accounting →](docs/architecture/ARCHITECTURE.md#investigation-modes)
+Adaptive rehearsal defaults to four candidate experiments with at most two
+actions each. The API permits one to eight candidates and enforces a 120-second
+scheduling deadline. The model uses Mistral Conversations with `store: false` and
+the allowlisted `rehearse_plan` / `stop_rehearsal` functions. Measured trial outcomes
+inform the next request. Invalid decisions and provider errors authorize no new
+plan and never silently fall back to an offline success.
+
+Investigation also supports `baseline`, `prompt`, `retrieval`, and `mistral`
+modes. Model-directed investigation is bounded to eight API turns and 16 tool
+calls. The baseline is an engineered offline policy, not a model.
+
+Token and latency records remain in exports. Dollar estimates require configured
+`MISTRAL_INPUT_USD_PER_MILLION` and `MISTRAL_OUTPUT_USD_PER_MILLION`; otherwise cost
+is unknown. Failed calls may have usage the provider did not report.
+[Provider integration and limitations](docs/career/mistral-fde.md)
 
 </details>
 
-This is a local demo without user authentication. Docker exposes it only on
-loopback; it is not configured as a public service. API documentation is available
-at `/docs`.
+## Try the demo
 
-## Verify it yourself
+A missing inventory route hides a pricing bug. The first repair restores HTTP
+200, but a notebook costs **$13.00 instead of $12.00**. The contract rejects that
+partial repair; the complete plan also rolls back the pricing release.
+
+1. Select **Try the silent-failure demo**. It injects `route_and_price_drift`
+   at seed 42 and runs the first offline investigation.
+2. Open a citation. Checkout returns 502; the evidence shows the dependency's
+   missing route and HTTP 404.
+3. In **Fix rehearsal**, run **Adaptive · offline policy** with the default
+   four-experiment budget and two-action limit. Inspect the route-only trial:
+   HTTP succeeds, but expected-versus-observed prices fail.
+4. Follow the decision trail into the combined route repair and rollback.
+   Each trial starts from the original snapshot, so it must include both repairs.
+5. Select **Explain why each fix is needed** to run the optional Recovery Proof.
+   Compare the full plan, unchanged control, and each action removal.
+6. Select **Apply plan & verify**. The server rechecks the current state, then
+   applies the plan and checks five fresh active-lab requests. Export the proof,
+   experiment JSON, and incident report; reopen history to inspect the record.
+
+The declared products are notebook ($12.00), lamp ($45.00), and mug ($8.50).
+Default three-request trials and five-request final verification cover all three.
+
+<details>
+<summary><strong>Explore experiment budgets, all plans, and no-action controls</strong></summary>
+
+Repeat the demo with **Experiment budget = 1**. The route-only repair exposes
+incorrect prices, so no passing plan is available to promote. Increase the
+ceiling to four and rerun against the unchanged source.
+
+Select **Compare all plans** to measure the no-change control, each individual
+fix, and the action pairs. Use **Show → Passed** to inspect successes, then
+return to **All outcomes** to keep failed experiments visible.
+
+Try **Healthy control** and **Missing evidence**. Both should recommend no
+mutation: healthy traffic needs no fix, while absent telemetry requires
+abstention. Restarting preserves history but creates a new episode; old plans
+remain read-only. Live Mistral decisions can differ from this offline demo;
+its measured failures are reported below.
+
+</details>
+
+## Architecture
+
+**Python 3.11+ · FastAPI · SQLite · TypeScript · Vite · BM25 runbooks · optional Mistral**
+
+The application uses actual checkout and inventory HTTP servers plus a SQLite
+catalog. Its failures are controlled lab mechanisms. Every rehearsal clone gets
+the same actual-state snapshot, including partial repairs already made; it does
+not use the scenario label as a repair answer key.
+
+```mermaid
+flowchart TD
+    UI["Browser workbench · TypeScript / Vite"] --> API["FastAPI · application coordinator"]
+    API --> INVEST["Read-only investigator<br/>Offline policy or Mistral + runbooks"]
+    INVEST --> EVIDENCE["Observed logs, metrics, health and changes"]
+    API --> LAB["Active lab<br/>Checkout → Inventory + SQLite"]
+    LAB --> EVIDENCE
+    LAB --> SNAP["Snapshot<br/>State + SQLite backup + contract"]
+    SNAP --> TRIALS["Isolated clones<br/>Rehearsal + optional Recovery Proof"]
+    TRIALS --> CHECK["Independent verifier<br/>HTTP + product + exact price"]
+    CHECK --> REPORT["Measured plans and failure evidence"]
+    REPORT --> UI
+    UI -->|"Explicit apply request"| GATE["Current episode, revision,<br/>fingerprint and proof checks"]
+    GATE -->|"Apply + five fresh checks"| LAB
+    API --> HISTORY["SQLite history + audit events"]
+    HISTORY --> EXPORT["JSON artifacts + Markdown reports"]
+    classDef green fill:#e7f2e9,stroke:#7eaa8d,color:#173b2c;
+    class CHECK,GATE,SNAP green;
+```
+
+The investigator can observe but cannot mutate the lab. The planner can choose
+allowed experiments but cannot change the independent contract or promote its
+own plan. A passing experiment becomes a recommendation; an explicit operator
+request and current-state checks are still required to apply it.
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant API as IncidentLab API
+    participant Planner as Offline or Mistral planner
+    participant Clone as Fresh isolated clone
+    participant Contract as Independent verifier
+    Operator->>API: Start rehearsal
+    API->>Clone: Measure no-action control from snapshot
+    Clone->>Contract: HTTP responses and checkout data
+    Contract-->>API: Observed failures
+    alt Healthy control or missing diagnostic evidence
+        API-->>Operator: No action or abstention
+    else Actionable failed control
+    loop Until passing plan, abstention, error, or budget limit
+        API->>Planner: Control and previous experiment evidence
+        Planner-->>API: Complete plan + evidence citations
+        API->>Clone: New copy of the original snapshot, apply plan
+        Clone->>Contract: Fresh response checks
+        Contract-->>API: Pass/fail + expected and observed values
+    end
+    API-->>Operator: Experiment report and decision trail
+    opt A passing recommendation exists
+    opt Operator requests Recovery Proof
+        Operator->>API: Test full plan, control, and action removals
+        API->>Clone: Independent trials, at most 36 checkout requests
+        Clone->>Contract: Nine requests per trial
+        Contract-->>API: Per-action observations
+        API-->>Operator: Proof, limits, and current authority
+    end
+    Operator->>API: Apply plan and verify
+    API->>API: Check current episode, revision, fingerprint and proof
+    API-->>Operator: Apply to active lab, return five fresh checks
+    end
+    end
+```
+
+Records persist in `runtime/history.sqlite`. Reloads restore the workspace;
+server restarts create a new lab episode while retaining read-only history.
+[Component map and exact interfaces](docs/architecture/overview.md) ·
+[Contract specification](docs/architecture/semantic-recovery.md)
+
+## Recovery Proof
+
+A passing plan says what worked. Recovery Proof asks **what happens if one fix
+is removed?** It compares the full plan with an unchanged control and each
+leave-one-action-out variant, all from the same snapshot. It makes **zero model
+calls** and does not modify the active lab.
+
+| Plan | Trials | Checkout requests |
+| --- | --- | ---: |
+| One action | Control + full plan; the control also represents removal of the action | 18 |
+| Two actions | Control + full plan + each action removed | 36 |
+
+Each trial checks all three products three times. A failed measurement stops the
+run; exports distinguish completed trials from potentially partial failed traffic.
+The five post-promotion requests are separate from this budget.
+
+The [recorded guided proof](docs/evaluation/results/recovery-proof-route-price.json)
+completed all four trials with the source unchanged:
+
+| Trial | HTTP outcome | Contract outcome |
+| --- | --- | --- |
+| No changes | 9 × 502 | Failed |
+| Route repair + rollback | 9 × 200 | Passed |
+| Without route repair | 9 × 502 | Failed |
+| Without rollback | 9 × 200 | Failed: nine incorrect prices |
+
+This supports necessity **within that measured plan and snapshot**. It does not
+establish global minimality, a unique cause, or production safety. If removing an
+action also passes, the report identifies redundancy; the passing full plan can
+still be eligible. An incomplete or failed proof blocks that rehearsal's promotion.
+
+Proof is optional, but once requested its failure cannot be bypassed by promoting
+the same rehearsal. Exported SHA-256 digests are **unsigned**: they detect changes
+against a trusted digest, not who authored the artifact. Current authority is
+recomputed separately; a saved proof never authorizes a change in a new episode.
+[Full proof protocol and authority rules](docs/architecture/recovery-proof.md)
+
+## Measured results
+
+Results use small, controlled, known-fault cases. They are not production incidents,
+MTTR measurements, or evidence of generalization to unseen failures. Unsuccessful
+cases and provider errors remain in the denominators.
+
+| Measurement | Recorded result | Evidence |
+| --- | --- | --- |
+| HTTP-only vs contract acceptance on identical responses | 72 paired trials / 216 requests; HTTP accepted 39, contract accepted 30. **9/39 HTTP acceptances were false recoveries (23.08%).** | [Offline export](docs/evaluation/results/semantic-offline-results.json) |
+| Separate offline adaptive recovery arm | **12/12 faults recovered**, **6/6 no-action controls**, 18 candidate experiments, zero provider calls | [Semantic protocol](docs/evaluation/semantic-evaluation.md) |
+| Live `mistral-small-2603`, initial smoke | **1/4 faults recovered**, 2/2 controls, two provider errors; a compound plan omitted a required prior repair | [Initial live export](docs/evaluation/results/semantic-mistral-initial-results.json) |
+| Same pinned model, context follow-up | **1/4 faults recovered**, 2/2 controls, three HTTP 429 failures; no demonstrated recovery-quality improvement | [Follow-up export](docs/evaluation/results/semantic-mistral-followup-results.json) |
+
+The paired acceptance test and policy recovery test answer different questions.
+Offline results describe engineered rules, not Mistral accuracy. Both live traces
+are retained; no live quality improvement is claimed.
+
+<details>
+<summary><strong>Historical HTTP-status results · October 17, 2026</strong></summary>
+
+These runs predate business-contract checks and the silent-price scenarios.
+Recovery meant five fresh HTTP 200 responses.
+
+| Comparison | Recorded result | Budget and scope |
+| --- | --- | --- |
+| Single-fault baseline | 105/105 correct causes/actions; 75/75 recoveries; 30/30 no-action controls | [Frozen baseline cases](docs/evaluation/baseline-results.md) |
+| Exhaustive rehearsal vs one proposed fix | 24/24 vs 15/24 fault recoveries; 9/9 vs 0/9 compound recoveries; both 6/6 controls | 405 candidates and 1,305 rehearsal requests; larger search budget. [Protocol](docs/evaluation/rehearsal-evaluation.md) |
+| Offline adaptive vs fixed-order search | 24/24 vs 12/24 fault recoveries; 33 vs 78 candidates; both 6/6 controls | Same candidate ceiling; deliberately simple ordered comparator. [Protocol](docs/evaluation/adaptive-evaluation.md) |
+
+Exhaustive rehearsal's median complete episode time was 1,717.40 ms versus
+15.72 ms for the one-shot baseline. The improved recovery rate costs more work;
+it is not a measured reduction in real incident resolution time. Historical
+[rehearsal](docs/evaluation/results/rehearsal-results.json) and
+[adaptive](docs/evaluation/results/adaptive-results.json) artifacts are unchanged.
+
+</details>
+
+## Run the checks
 
 ```sh
-# Real-HTTP integration tests and mocked model contract tests
+# Full local quality checks after make bootstrap
+make check
+
+# Backend integration suite when the host restricts loopback HTTP
 docker compose --profile test run --build --rm test
 
-# Compare HTTP-only acceptance with contract-verified recovery
+# Reproduce semantic acceptance and offline recovery measurements
 docker compose --profile eval run --build --rm eval \
   incidentlab-semantic-eval --split test --strategies adaptive
 
-# Compare adaptive selection and fixed-order search at the same candidate ceiling
+# Equal-ceiling adaptive versus fixed-order comparison
 docker compose --profile eval run --build --rm eval \
   incidentlab-adaptive-eval --seeds 11,23,37 --max-experiments 4
 ```
 
-Full per-case evidence is saved under `artifacts/`. The existing single-fault
-suite separately contains 7 smoke, 21 development, and 105 regression cases.
-These suites exercise known fault families; seed splits do not establish
-generalization to unseen incidents.
+New full reports go to ignored `artifacts/`; published summaries live under
+`docs/evaluation/results/`. The separate single-fault manifest has 7 smoke,
+21 development, and 105 test cases. Live semantic/adaptive comparisons require
+credentials and explicit `--allow-paid-api` opt-in. Mocked provider tests incur
+no model charges. [Protocols](docs/README.md#evaluation) · [Latest validation](STATUS.md)
 
-[All validation commands](docs/architecture/ARCHITECTURE.md#validation-and-evaluation) ·
-[Single-fault evaluation methodology](docs/evaluation/EVALUATION.md) ·
-[Documentation map](docs/README.md) ·
-[Contributing](CONTRIBUTING.md) ·
-[Project status](STATUS.md) · [Original scope decision](docs/architecture/DECISION.md)
+## Security and scope
 
-Next work targets the observed live-model failure modes, a stronger iterative
-baseline, additional business invariants, and engineer feedback. Production
-telemetry adapters and deployment rollback require separate engineering.
+This is a **local demo without authentication or tenant isolation**. Compose
+binds the UI to loopback. Run a single process and do not expose this configuration
+as a public service. Credentials belong only in the server environment or ignored
+`.env`, never frontend code or committed artifacts.
+
+Only allowlisted lab actions can run. Scenario labels and evaluator answers stay
+outside model observations. Independent response validation, bounded experiments,
+and stale-state checks constrain this workflow; citation validation does not
+prove every model statement follows from its evidence.
+
+The API checks loopback Host names and full browser origins, bounds request bodies
+to 64 KiB, prevents API caching, and returns sanitized errors. The frontend checks
+response shapes before accepting state and disables mutations after a failed
+refresh. These controls supplement the local-only scope; they do not add user
+authentication. [Security review, fixes, and scan limits](docs/development/codebase-audit.md)
+
+The contract covers declared product, price, and response-shape requirements.
+It does not verify unspecified business rules, side effects, long-term reliability,
+or production rollout safety. Clones are copies of this purpose-built HTTP/SQLite
+application, not arbitrary production infrastructure. Next work includes broader
+invariants, stronger comparison policies, provider-failure handling, and engineer
+feedback. Production telemetry adapters require separate engineering.
+
+## Repository map
+
+```text
+frontend/                     TypeScript source, local assets, tests, Vite build
+src/incidentlab/
+├── api/                      HTTP routes, browser security, frontend delivery
+├── domain/                   Shared models and independent contracts
+├── lab/                      HTTP services, scenarios, snapshots
+├── investigation/            Investigator adapters, tools, runbooks
+├── recovery/                 Rehearsal, adaptive planning, Recovery Proof
+├── evaluation/               Offline/live comparisons and frozen manifests
+├── application.py            Workflow coordination and promotion authority
+├── storage.py                SQLite records and audit events
+└── cli.py                    Application entrypoint
+tests/                        Tests grouped around those responsibilities
+docs/                         Technical references, protocols, and recorded results
+```
+
+Edit `frontend/src`; Vite generates the ignored `frontend/dist`. Wheels include
+that build as `incidentlab/web`. `make build` creates the frontend and Python
+distributions. Dependency lockfiles are tracked; generated builds, caches, local
+runtime state, and private credentials are not.
+
+[Contributing](CONTRIBUTING.md) · [Documentation index](docs/README.md) ·
+[Design history](docs/architecture/scope-decision.md) ·
+[CV claims with evidence](docs/career/cv.md) · [Project status](STATUS.md)

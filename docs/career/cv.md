@@ -37,7 +37,7 @@ were false recoveries** under the independent business contract (23.08%).
 Contract checks accepted 30. Separately, the offline adaptive policy recovered
 **12/12 fault episodes**, preserved **6/6 no-action controls**, and used
 **18 candidate experiments**. See the full
-[semantic evaluation protocol and evidence](../evaluation/SEMANTIC_EVALUATION.md).
+[semantic evaluation protocol and evidence](../evaluation/semantic-evaluation.md).
 
 A concise results bullet:
 
@@ -73,11 +73,11 @@ scenarios. Their recovery definition was five fresh HTTP 200 responses:
 - Exhaustive rehearsal improved recovery from 15/24 (62.5%) to 24/24 (100%)
   against a one-shot rule-based baseline, with 9/9 compound cases recovered and
   6/6 no-action controls preserved. This used 405 candidates and 1,305 rehearsal
-  requests. [Protocol](../evaluation/REHEARSAL_EVALUATION.md)
+  requests. [Protocol](../evaluation/rehearsal-evaluation.md)
 - The offline adaptive reference recovered 24/24 faults in 33 candidates, with
   6/6 no-action controls. The fixed-order comparator had the same candidate
   ceiling but was limited by its particular ordering.
-  [Protocol](../evaluation/ADAPTIVE_EVALUATION.md)
+  [Protocol](../evaluation/adaptive-evaluation.md)
 
 These remain historical system measurements. They do not demonstrate semantic
 correctness under the new contract, live AI accuracy, or reduced production MTTR.

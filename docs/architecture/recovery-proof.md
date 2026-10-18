@@ -95,7 +95,7 @@ responses; the proof does not perform that mutation.
 
 ## Try it and export the record
 
-1. Follow the [silent-failure demo](../guides/DEMO.md) through a passing combined
+1. Follow the [silent-failure demo](../../README.md#try-the-demo) through a passing combined
    recommendation.
 2. Select **Explain why each fix is needed**. Compare the full-plan, no-change,
    and action-removal cards, including HTTP success with a failed price check.
@@ -108,7 +108,7 @@ responses; the proof does not perform that mutation.
 Historical records remain inspectable; they cannot authorize changes in another
 episode or after promotion.
 
-Implementation: [proof engine](../../src/incidentlab/proof.py),
-[service authority and persistence](../../src/incidentlab/service.py),
-[API](../../src/incidentlab/api.py). See also
-[semantic contracts](SEMANTIC_RECOVERY.md) and [architecture](ARCHITECTURE.md).
+Implementation: [proof engine](../../src/incidentlab/recovery/proof.py),
+[service authority and persistence](../../src/incidentlab/application.py),
+[API](../../src/incidentlab/api/app.py). See also
+[semantic contracts](semantic-recovery.md) and [architecture](overview.md).

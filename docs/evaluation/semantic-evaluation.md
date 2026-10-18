@@ -144,5 +144,5 @@ Keep the failed artifact. Model availability, provider limits, nondeterminism,
 and future prompt changes can change the outcome. The two published live
 exports intentionally preserve both implementation iterations.
 
-[Contract design](../architecture/SEMANTIC_RECOVERY.md) · [FDE case study](../career/MISTRAL_FDE.md) ·
+[Contract design](../architecture/semantic-recovery.md) · [FDE case study](../career/mistral-fde.md) ·
 [Project overview](../../README.md)

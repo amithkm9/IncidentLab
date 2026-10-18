@@ -66,5 +66,5 @@ latencies naturally change on rerun. Failed arms remain in the denominator.
 The Docker integration suite passed **170 tests** in 33.22 seconds.
 
 For an explicitly enabled live arm and price configuration, see the
-[Mistral integration guide](../career/MISTRAL_FDE.md). The broader-budget exhaustive versus
-one-shot result is a separate [comparison](REHEARSAL_EVALUATION.md).
+[Mistral integration guide](../career/mistral-fde.md). The broader-budget exhaustive versus
+one-shot result is a separate [comparison](rehearsal-evaluation.md).

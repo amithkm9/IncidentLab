@@ -46,8 +46,9 @@ uv run --extra dev pytest -q
 
 Ruff checks imports and Python errors using the repository's Python 3.11 target.
 TypeScript checks the frontend before Vite builds it. Tests are grouped into
-`tests/core/`, `tests/api/`, and `tests/evaluation/`; API and lab tests use real
-local HTTP services where appropriate. Provider contract tests use mocks and
+`tests/domain/`, `tests/lab/`, `tests/investigation/`, `tests/recovery/`, `tests/api/`, and `tests/evaluation/`; API and lab tests use real
+local HTTP services where appropriate. Storage tests live in `tests/test_storage.py`;
+shared fixtures are in `tests/conftest.py`. Provider contract tests use mocks and
 make no paid calls. Pytest treats warnings as errors so dependency regressions
 remain visible.
 
@@ -58,8 +59,8 @@ docker compose --profile test run --build --rm test
 ```
 
 Formatting is an explicit operation (`make format`); check and build commands
-do not rewrite source. Follow the [work plan](WORK_PLAN.md) for
-the current implementation pass and the [evaluation protocols](../README.md)
+do not rewrite source. Follow the [work plan](implementation-plan.md) for
+the completed migration and the [codebase audit](codebase-audit.md) for the current review and the [evaluation protocols](../README.md)
 for benchmark commands and interpretation.
 
 ## Why two HTTP client packages?
@@ -118,3 +119,10 @@ This resolves the deprecated Node 20 action warning. Pinning the runner avoids
 GitHub's announced [Ubuntu-latest migration](https://github.com/actions/runner-images/issues/14748)
 changing the host image implicitly. Repository permissions are read-only, and
 checkout credentials are not retained after fetching source.
+
+## Container tool installation
+
+The image copies the pinned `uv` binary from Astral’s official container image,
+following its [Docker integration guide](https://docs.astral.sh/uv/guides/integration/docker/).
+This removes the root-user `pip install uv` warning at its source. Application
+execution still uses the unprivileged `lab` user.
