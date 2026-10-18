@@ -6,12 +6,16 @@ import urllib.request
 import pytest
 
 from incidentlab.investigator import baseline
-from incidentlab.lab import Lab, SCENARIOS
+from incidentlab.lab import SCENARIOS, Lab
 from incidentlab.models import Action, Cause
 from incidentlab.tools import Toolbox
 
 
-@pytest.mark.parametrize("scenario", [scenario for scenario in SCENARIOS if scenario.fault_count < 2], ids=lambda scenario: scenario.id)
+@pytest.mark.parametrize(
+    "scenario",
+    [scenario for scenario in SCENARIOS if scenario.fault_count < 2],
+    ids=lambda scenario: scenario.id,
+)
 def test_real_fault_diagnosis_and_recovery(lab, scenario):
     before = lab.inject(scenario.id, seed=107)
     assert before["requests"] == 4
@@ -33,7 +37,31 @@ def test_http_liveness_does_not_establish_checkout_readiness(lab):
         assert response.status == 200
     with pytest.raises(urllib.error.HTTPError) as raised:
         urllib.request.urlopen(lab.checkout_url + "/checkout")
-    assert raised.value.code == 502
+    with raised.value as response:
+        assert response.code == 502
+
+
+def test_error_response_streams_close_after_dependency_probe_and_health_failures(lab, monkeypatch):
+    original = urllib.request.urlopen
+    responses = []
+
+    def track_error_response(url, *args, **kwargs):
+        try:
+            return original(url, *args, **kwargs)
+        except urllib.error.HTTPError as exc:
+            # Keep strong references so garbage collection cannot hide a leak.
+            responses.append((str(url), exc, exc.fp))
+            raise
+
+    monkeypatch.setattr(urllib.request, "urlopen", track_error_response)
+    lab.inject("inventory_down")
+    lab.probe(2)
+    lab.get_service_health()
+    assert any(url.startswith(lab.inventory_url + "/v1/stock") for url, _, _ in responses)
+    assert any(url.startswith(lab.checkout_url + "/checkout") for url, _, _ in responses)
+    assert any(url == lab.inventory_url + "/health" for url, _, _ in responses)
+    assert {error.code for _, error, _ in responses} == {502, 503}
+    assert all(response.closed for _, _, response in responses)
 
 
 def test_wrong_fix_does_not_claim_recovery(lab):
@@ -60,7 +88,10 @@ def test_invalid_mutating_tool_is_rejected(lab):
     assert result["error"]
     assert lab.status()["errors"] == 4
     assert toolbox.invoke("query_logs", {"limit": 1000})["error"] == "Invalid tool arguments"
-    assert toolbox.invoke("get_metrics", {"scenario_id": "healthy"})["error"] == "Invalid tool arguments"
+    assert (
+        toolbox.invoke("get_metrics", {"scenario_id": "healthy"})["error"]
+        == "Invalid tool arguments"
+    )
 
 
 def test_prior_window_requests_cannot_contaminate_recovery(lab):
@@ -88,7 +119,11 @@ def test_observed_evidence_is_not_labeled_with_the_scenario(lab):
         assert all("scenario_id" not in e["data"] and "cause" not in e["data"] for e in data)
 
 
-@pytest.mark.parametrize("scenario", [scenario for scenario in SCENARIOS if scenario.fault_count == 2], ids=lambda scenario: scenario.id)
+@pytest.mark.parametrize(
+    "scenario",
+    [scenario for scenario in SCENARIOS if scenario.fault_count == 2],
+    ids=lambda scenario: scenario.id,
+)
 def test_compound_failure_masks_a_second_fault(lab, scenario):
     lab.inject(scenario.id)
     finding = baseline(Toolbox(lab)).finding
@@ -110,8 +145,16 @@ def test_atomic_plan_uses_one_fresh_observation_window(lab):
     assert lab.status()["requests"] == 3
 
 
-@pytest.mark.parametrize("actions", [[], [Action.none], [Action.route, Action.route],
-    [Action.route, Action.database, Action.rollback], [Action.route, "arbitrary_shell_command"]])
+@pytest.mark.parametrize(
+    "actions",
+    [
+        [],
+        [Action.none],
+        [Action.route, Action.route],
+        [Action.route, Action.database, Action.rollback],
+        [Action.route, "arbitrary_shell_command"],
+    ],
+)
 def test_invalid_plan_does_not_partially_change_state(lab, actions):
     lab.inject("route_and_release")
     fingerprint = lab.fingerprint()
@@ -138,7 +181,10 @@ def test_clone_copies_database_and_uses_independent_endpoints(lab, tmp_path):
         with sqlite3.connect(clone.database) as database:
             database.execute("UPDATE products SET price = 9 WHERE sku = 'notebook'")
         with sqlite3.connect(lab.database) as database:
-            assert database.execute("SELECT price FROM products WHERE sku = 'notebook'").fetchone()[0] == 71
+            assert (
+                database.execute("SELECT price FROM products WHERE sku = 'notebook'").fetchone()[0]
+                == 71
+            )
         assert lab.status()["requests"] == 4
     finally:
         clone.close()
