@@ -11,19 +11,20 @@ import tempfile
 import time
 from pathlib import Path
 
-from .lab import Lab, LabSnapshot
-from .models import Action
+from incidentlab.domain.models import Action
+from incidentlab.lab import Lab, LabSnapshot
 
 EXECUTABLE_ACTIONS = tuple(action for action in Action if action != Action.none)
 
 
-def _experiment(
+def measure_plan(
     snapshot: LabSnapshot,
     directory: Path,
     plan_id: str,
     actions: tuple[Action, ...],
     probe_count: int,
 ) -> dict:
+    """Measure one plan on a fresh clone and release its HTTP resources."""
     started = time.perf_counter()
     clone = Lab.from_snapshot(snapshot, directory)
     try:
@@ -67,7 +68,7 @@ def run_rehearsal(lab: Lab, max_actions: int = 2, probe_count: int = 3) -> dict:
     experiments = []
     with tempfile.TemporaryDirectory(prefix="incidentlab-rehearsal-") as temporary:
         directory = Path(temporary)
-        control = _experiment(snapshot, directory / "control", "control", (), probe_count)
+        control = measure_plan(snapshot, directory / "control", "control", (), probe_count)
         if snapshot.telemetry_available:
             plans = itertools.chain.from_iterable(
                 itertools.combinations(EXECUTABLE_ACTIONS, size)
@@ -76,7 +77,7 @@ def run_rehearsal(lab: Lab, max_actions: int = 2, probe_count: int = 3) -> dict:
             for index, actions in enumerate(plans, start=1):
                 plan_id = f"plan-{index:02d}"
                 experiments.append(
-                    _experiment(snapshot, directory / plan_id, plan_id, actions, probe_count)
+                    measure_plan(snapshot, directory / plan_id, plan_id, actions, probe_count)
                 )
     successes = [trial for trial in experiments if trial["verification"]["all_healthy"]]
     control_healthy = control["verification"]["all_healthy"]

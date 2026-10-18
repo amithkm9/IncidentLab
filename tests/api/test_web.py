@@ -5,7 +5,7 @@ import re
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from incidentlab.web import mount_frontend
+from incidentlab.api.frontend import mount_frontend
 
 
 def test_built_frontend_loads_all_referenced_assets(client):
@@ -32,7 +32,7 @@ def test_missing_frontend_build_explains_setup_without_breaking_api(tmp_path):
     def health():
         return {"status": "ok"}
 
-    with TestClient(app) as client:
+    with TestClient(app, base_url="http://127.0.0.1") as client:
         assert client.get("/healthz").status_code == 200
         response = client.get("/")
         assert response.status_code == 503

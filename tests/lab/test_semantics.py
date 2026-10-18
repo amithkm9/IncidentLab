@@ -1,9 +1,9 @@
 import sqlite3
 from dataclasses import replace
 
-from incidentlab.contracts import CHECKOUT_CONTRACT
+from incidentlab.domain.contracts import CHECKOUT_CONTRACT
+from incidentlab.domain.models import Action
 from incidentlab.lab import Lab
-from incidentlab.models import Action
 
 
 def test_silent_price_drift_returns_200_but_fails_business_verification(lab):

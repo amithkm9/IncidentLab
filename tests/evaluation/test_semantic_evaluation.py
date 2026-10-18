@@ -4,9 +4,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from incidentlab.contracts import CHECKOUT_CONTRACT, validate_checkout_response
+from incidentlab.domain.contracts import CHECKOUT_CONTRACT, validate_checkout_response
+from incidentlab.domain.models import Action
 from incidentlab.evaluation import semantic as evaluation
-from incidentlab.models import Action
 
 
 def verification(count=3, status=200, offset=0):
@@ -170,7 +170,7 @@ def fake_protocol(monkeypatch):
         return measured(*args)
 
     monkeypatch.setattr(evaluation, "Lab", FakeLab)
-    monkeypatch.setattr(evaluation, "_experiment", measure)
+    monkeypatch.setattr(evaluation, "measure_plan", measure)
     monkeypatch.setattr(evaluation.policy_evaluation, "_run_arm", policy_outcome)
     return calls
 
@@ -229,7 +229,7 @@ def test_failed_measurement_and_policy_remain_in_denominators(fake_protocol, mon
             )
         return outcome
 
-    monkeypatch.setattr(evaluation, "_experiment", failed_trial)
+    monkeypatch.setattr(evaluation, "measure_plan", failed_trial)
     monkeypatch.setattr(evaluation.policy_evaluation, "_run_arm", failed_policy)
     report = evaluation.evaluate()
     assert report["summary"]["episode_errors"] == 1

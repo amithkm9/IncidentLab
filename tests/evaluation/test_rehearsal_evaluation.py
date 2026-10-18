@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from incidentlab.domain.models import Action
 from incidentlab.evaluation import rehearsal as evaluation
-from incidentlab.models import Action
 
 
 class FakeLab:

@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 
 def frontend_directory() -> Path:
-    package_directory = Path(__file__).resolve().parent
+    package_directory = Path(__file__).resolve().parents[1]
     packaged = package_directory / "web"
     if (packaged / "index.html").is_file():
         return packaged

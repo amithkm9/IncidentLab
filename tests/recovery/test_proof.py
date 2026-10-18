@@ -4,10 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from incidentlab import proof
-from incidentlab.contracts import CHECKOUT_CONTRACT
+from incidentlab.domain.contracts import CHECKOUT_CONTRACT
+from incidentlab.domain.models import Action
 from incidentlab.lab import Lab
-from incidentlab.models import Action
+from incidentlab.recovery import proof
 
 
 def run(snapshot, actions):

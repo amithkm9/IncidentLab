@@ -14,11 +14,12 @@ from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
 
-from .. import __version__
-from ..investigator import investigate
-from ..lab import SCENARIO_BY_ID, Lab
-from ..models import Action, Cause
-from ..tools import Toolbox
+from incidentlab import __version__
+from incidentlab.domain.models import Action, Cause
+from incidentlab.investigation.agents import investigate
+from incidentlab.investigation.tools import Toolbox
+from incidentlab.lab import Lab
+from incidentlab.lab.scenarios import SCENARIO_BY_ID
 
 MANIFEST = Path(__file__).parent / "manifests" / "baseline.json"
 

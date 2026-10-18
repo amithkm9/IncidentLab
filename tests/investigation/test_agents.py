@@ -3,9 +3,9 @@ import json
 import httpx
 import pytest
 
-from incidentlab.investigator import MistralInvestigator, validate_finding
-from incidentlab.models import Action, Cause, Evidence, Finding
-from incidentlab.tools import RunbookIndex, Toolbox
+from incidentlab.domain.models import Action, Cause, Evidence, Finding
+from incidentlab.investigation.agents import MistralInvestigator, validate_finding
+from incidentlab.investigation.tools import RunbookIndex, Toolbox
 
 
 def finding(**changes):

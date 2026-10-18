@@ -3,7 +3,7 @@ from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
-from incidentlab.contracts import CHECKOUT_CONTRACT, validate_checkout_response
+from incidentlab.domain.contracts import CHECKOUT_CONTRACT, validate_checkout_response
 
 
 @pytest.mark.parametrize(

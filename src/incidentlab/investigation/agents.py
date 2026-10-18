@@ -8,8 +8,8 @@ from typing import Any
 
 import httpx
 
-from .models import Action, Cause, Evidence, Finding, Investigation
-from .tools import Toolbox
+from incidentlab.domain.models import Action, Cause, Evidence, Finding, Investigation
+from incidentlab.investigation.tools import Toolbox
 
 DEFAULT_QUESTION = "Investigate checkout health. Identify the cause of any failure and propose an evidence-backed fix."
 ACTION_FOR_CAUSE = {

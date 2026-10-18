@@ -2,8 +2,9 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from incidentlab import proof, service
+from incidentlab import application as service
 from incidentlab.api import create_app
+from incidentlab.recovery import proof
 
 
 def rehearse(client, scenario="route_and_price_drift"):
@@ -123,10 +124,10 @@ def test_tampered_proof_digest_blocks_promotion(client):
 
 
 def test_proof_survives_restart_as_historical_evidence_without_authority(tmp_path):
-    with TestClient(create_app(tmp_path)) as client:
+    with TestClient(create_app(tmp_path), base_url="http://127.0.0.1") as client:
         record = rehearse(client, "silent_price_drift")
         original = client.post(f"/api/rehearsals/{record['id']}/proof").json()["proof"]
-    with TestClient(create_app(tmp_path)) as client:
+    with TestClient(create_app(tmp_path), base_url="http://127.0.0.1") as client:
         response = client.get(f"/api/rehearsals/{record['id']}/proof")
         assert response.status_code == 200
         assert response.json()["proof"] == original

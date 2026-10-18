@@ -5,10 +5,11 @@ import urllib.request
 
 import pytest
 
-from incidentlab.investigator import baseline
-from incidentlab.lab import SCENARIOS, Lab
-from incidentlab.models import Action, Cause
-from incidentlab.tools import Toolbox
+from incidentlab.domain.models import Action, Cause
+from incidentlab.investigation.agents import baseline
+from incidentlab.investigation.tools import Toolbox
+from incidentlab.lab import Lab
+from incidentlab.lab.scenarios import SCENARIOS
 
 
 @pytest.mark.parametrize(

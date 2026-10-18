@@ -20,11 +20,12 @@ from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
 
-from .. import __version__
-from ..lab import SCENARIO_BY_ID, Lab
-from ..models import Action
-from ..rehearsal import EXECUTABLE_ACTIONS, _experiment
-from .rehearsal import MANIFEST as REHEARSAL_MANIFEST
+from incidentlab import __version__
+from incidentlab.domain.models import Action
+from incidentlab.evaluation.rehearsal import MANIFEST as REHEARSAL_MANIFEST
+from incidentlab.lab import Lab
+from incidentlab.lab.scenarios import SCENARIO_BY_ID
+from incidentlab.recovery.rehearsal import EXECUTABLE_ACTIONS, measure_plan
 
 STRATEGIES = ("adaptive", "ordered", "mistral")
 SCENARIOS = copy.deepcopy(REHEARSAL_MANIFEST["scenarios"])
@@ -91,7 +92,9 @@ def run_ordered_rehearsal(
     recommended, control, error, attempted = None, None, None, 0
     try:
         with tempfile.TemporaryDirectory(prefix="incidentlab-ordered-") as directory:
-            control = _experiment(snapshot, Path(directory) / "control", "control", (), probe_count)
+            control = measure_plan(
+                snapshot, Path(directory) / "control", "control", (), probe_count
+            )
             if not snapshot.telemetry_available:
                 stop_reason = "missing_telemetry"
             elif _passed(control["verification"], probe_count):
@@ -107,7 +110,7 @@ def run_ordered_rehearsal(
                 ):
                     plan_id = f"plan-{index:02d}"
                     attempted += 1
-                    trial = _experiment(
+                    trial = measure_plan(
                         snapshot, Path(directory) / plan_id, plan_id, actions, probe_count
                     )
                     experiments.append(trial)
@@ -187,7 +190,7 @@ def run_ordered_rehearsal(
 def _run_strategy(lab, strategy, max_experiments, max_actions, probe_count, planner=None):
     if strategy == "ordered":
         return run_ordered_rehearsal(lab, max_experiments, max_actions, probe_count)
-    from ..adaptive import run_adaptive_rehearsal
+    from incidentlab.recovery.adaptive import run_adaptive_rehearsal
 
     return run_adaptive_rehearsal(
         lab,

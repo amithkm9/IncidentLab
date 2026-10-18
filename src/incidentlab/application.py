@@ -11,14 +11,14 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .adaptive import run_adaptive_rehearsal
-from .investigator import investigate
-from .lab import Lab
-from .models import Action, InvestigateRequest
-from .proof import run_recovery_proof, seal_proof, verify_proof_integrity
-from .rehearsal import run_rehearsal
-from .store import RecordStore
-from .tools import Toolbox
+from incidentlab.domain.models import Action, InvestigateRequest
+from incidentlab.investigation.agents import investigate
+from incidentlab.investigation.tools import Toolbox
+from incidentlab.lab import Lab
+from incidentlab.recovery.adaptive import run_adaptive_rehearsal
+from incidentlab.recovery.proof import run_recovery_proof, seal_proof, verify_proof_integrity
+from incidentlab.recovery.rehearsal import run_rehearsal
+from incidentlab.storage import RecordStore, valid_investigation_record
 
 
 class ConflictError(Exception):
@@ -31,7 +31,8 @@ def now() -> str:
 
 def markdown(value: object) -> str:
     # Export model/user text as text, never executable HTML or Markdown links.
-    return re.sub(r"([\\`*_{}\[\]()<>#+!|])", r"\\\1", str(value)).replace("\n", " ")
+    text = re.sub(r"[\x00-\x1f\x7f\u2028\u2029]", " ", str(value))
+    return re.sub(r"([\\`*_{}\[\]()<>#+!|])", r"\\\1", text)
 
 
 class IncidentService:
@@ -299,10 +300,10 @@ class IncidentService:
             if (
                 not plan
                 or not plan["actions"]
-                or not plan["verification"].get("all_healthy")
-                or not plan["verification"].get("semantic_passed")
+                or plan["verification"].get("all_healthy") is not True
+                or plan["verification"].get("semantic_passed") is not True
                 or plan["verification"].get("contract") != snapshot.contract.metadata()
-                or report["control"]["verification"]["all_healthy"]
+                or report["control"]["verification"].get("all_healthy") is not False
                 or not snapshot.telemetry_available
             ):
                 raise ConflictError(
@@ -408,8 +409,8 @@ class IncidentService:
                 not plan
                 or plan_id != report["recommended_plan_id"]
                 or not plan["actions"]
-                or not plan["verification"]["all_healthy"]
-                or report["control"]["verification"]["all_healthy"]
+                or plan["verification"].get("all_healthy") is not True
+                or report["control"]["verification"].get("all_healthy") is not False
             ):
                 raise ConflictError("Only the recommended successful plan can be promoted.")
             if record.get("proof_failure"):
@@ -463,7 +464,7 @@ class IncidentService:
             return {**promotion, "status": self._observation()}
 
     def _recovery_event(self, result: dict, label: str, identifiers: dict) -> dict:
-        verified = result["verification"]["all_healthy"]
+        verified = result["verification"].get("all_healthy") is True
         semantic = result["verification"].get("semantic_passed")
         contract = (
             "passed" if semantic is True else "failed" if semantic is False else "not recorded"
@@ -484,6 +485,8 @@ class IncidentService:
     def history(self, limit: int = 50) -> dict:
         investigations = []
         for record in self.store.recent("investigation", limit):
+            if not valid_investigation_record(record):
+                continue
             finding = record["result"]["finding"]
             outcome = self.store.latest_recovery(record["episode_id"])
             investigations.append(
@@ -497,8 +500,9 @@ class IncidentService:
                     "cause": finding["cause"],
                     "remediated": record.get("remediation") is not None,
                     "verified": bool(outcome and outcome["type"] == "recovery_verified"),
-                    "investigation_verified": bool(
+                    "investigation_verified": (
                         (record.get("remediation") or {}).get("verification", {}).get("all_healthy")
+                        is True
                     ),
                     "verification_scope": "latest_episode_outcome",
                 }
@@ -541,17 +545,17 @@ class IncidentService:
             "",
             f"## {markdown(finding['title'])}",
             "",
-            f"- Record: `{record['id']}`",
-            f"- Episode: `{record['episode_id']}`",
+            f"- Record: {markdown(record['id'])}",
+            f"- Episode: {markdown(record['episode_id'])}",
             f"- Captured: {markdown(record['created_at'])}",
             f"- Investigator: {markdown(result['mode'])}",
-            f"- Observed requests: {observation['requests']}; errors: {observation['errors']}",
+            f"- Observed requests: {markdown(observation['requests'])}; errors: {markdown(observation['errors'])}",
             "",
             "## Diagnosis",
             "",
             markdown(finding["explanation"]),
             "",
-            f"Proposed single action: `{finding['action']}`",
+            f"Proposed single action: {markdown(finding['action'])}",
             "",
             "## Supporting observations",
             "",
@@ -582,7 +586,7 @@ class IncidentService:
                     "",
                     f"Strategy: {markdown(report.get('strategy', 'exhaustive'))}.",
                     "",
-                    f"Tested {report['summary']['tested_plans']} plans; recommended `{report['recommended_plan_id'] or 'none'}`.",
+                    f"Tested {markdown(report['summary']['tested_plans'])} plans; recommended {markdown(report['recommended_plan_id'] or 'none')}.",
                     "",
                     "| Plan | Actions | HTTP responses | Business contract | Passed |",
                     "| --- | --- | --- | --- | --- |",
@@ -599,7 +603,7 @@ class IncidentService:
                     else "Not recorded"
                 )
                 lines.append(
-                    f"| {markdown(plan['id'])} | {markdown(', '.join(plan['actions']) or 'No action')} | {markdown(verification['statuses'])} | {contract_result} | {verification['all_healthy']} |"
+                    f"| {markdown(plan['id'])} | {markdown(', '.join(plan['actions']) or 'No action')} | {markdown(verification['statuses'])} | {contract_result} | {markdown(verification['all_healthy'])} |"
                 )
             if report["control"]["verification"].get("contract"):
                 contract = report["control"]["verification"]["contract"]
@@ -625,9 +629,9 @@ class IncidentService:
                     [
                         "### Counterfactual recovery proof",
                         "",
-                        f"Proof: `{proof['id']}`. Outcome: {markdown(proof['summary']['conclusion'])}.",
+                        f"Proof: {markdown(proof['id'])}. Outcome: {markdown(proof['summary']['conclusion'])}.",
                         "",
-                        f"Nine requests per trial; {proof['summary']['completed_trials']} completed trials. "
+                        f"Nine requests per trial; {markdown(proof['summary']['completed_trials'])} completed trials. "
                         "Each action was removed from the complete plan in an independent copy of the same snapshot.",
                         "",
                         "| Removed action | Comparison trial | Necessity in this measured plan |",
@@ -641,7 +645,7 @@ class IncidentService:
                 lines.extend(
                     [
                         "",
-                        f"Unsigned content SHA-256: `{proof['digest']['value']}`.",
+                        f"Unsigned content SHA-256: {markdown(proof['digest']['value'])}.",
                         "",
                         "This is historical evidence for the recorded snapshot, not global minimality, a signed certificate, or current promotion authority.",
                         "",
@@ -690,7 +694,7 @@ class IncidentService:
                     f"Business contract passed: {markdown(verification.get('semantic_passed', 'not recorded'))}.",
                     "",
                     "Recovery verified by this attempt."
-                    if verification["all_healthy"]
+                    if verification.get("all_healthy") is True
                     else "This attempt did not restore checkout. See the latest episode outcome below.",
                     "",
                 ]

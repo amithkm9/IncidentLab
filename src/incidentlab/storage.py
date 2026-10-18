@@ -7,10 +7,90 @@ preserves evidence, never authority to mutate the new in-memory lab.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import stat
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
+
+from .domain.models import Investigation
+
+MAX_LEGACY_RECORD_BYTES = 4 * 1024 * 1024
+
+
+def _record_id(value: object) -> bool:
+    return (
+        isinstance(value, str) and len(value) == 32 and all(c in "0123456789abcdef" for c in value)
+    )
+
+
+def valid_investigation_record(record: object) -> bool:
+    """Check historical shape without granting the record mutation authority.
+
+    The original v0.1 format has no scenario_id or business contract fields.
+    Keep those records readable, but never coerce strings into recovery flags.
+    """
+    try:
+        if (
+            not isinstance(record, dict)
+            or not _record_id(record.get("id"))
+            or not isinstance(record.get("episode_id"), str)
+            or not 1 <= len(record["episode_id"]) <= 128
+            or not isinstance(record.get("created_at"), str)
+            or not 1 <= len(record["created_at"]) <= 80
+            or type(record.get("revision")) is not int
+            or record["revision"] < 0
+        ):
+            return False
+        observation = record["observation"]
+        if not isinstance(observation, dict) or any(
+            type(observation.get(key)) is not int or observation[key] < 0
+            for key in ("requests", "errors")
+        ):
+            return False
+        Investigation.model_validate(record["result"])
+        remediation = record.get("remediation")
+        if remediation is not None:
+            if not isinstance(remediation, dict):
+                return False
+            verification = remediation["verification"]
+            if (
+                not isinstance(verification, dict)
+                or type(verification.get("all_healthy")) is not bool
+                or not isinstance(verification.get("statuses"), list)
+                or not 1 <= len(verification["statuses"]) <= 20
+                or any(
+                    type(status) is not int or not 100 <= status <= 599
+                    for status in verification["statuses"]
+                )
+                or any(
+                    type(verification[key]) is not bool
+                    for key in ("semantic_passed", "all_http_healthy")
+                    if key in verification
+                )
+            ):
+                return False
+            if verification["all_healthy"] is True and (
+                any(status != 200 for status in verification["statuses"])
+                or verification.get("semantic_passed", True) is not True
+                or verification.get("all_http_healthy", True) is not True
+            ):
+                return False
+            timestamp = remediation.get("created_at", record["created_at"])
+            if not isinstance(timestamp, str) or not 1 <= len(timestamp) <= 80:
+                return False
+        return True
+    except (KeyError, TypeError, ValueError, RecursionError):
+        return False
+
+
+def _decode_record(payload: str) -> dict | None:
+    try:
+        record = json.loads(payload)
+        return record if isinstance(record, dict) else None
+    except (ValueError, TypeError, RecursionError):
+        return None
 
 
 class RecordStore:
@@ -36,13 +116,32 @@ class RecordStore:
                 CREATE INDEX IF NOT EXISTS events_episode_sequence
                     ON events(episode_id, sequence);
             """)
+        self._import_legacy(directory / "investigations")
+
+    def _import_legacy(self, directory: Path) -> None:
+        """Import bounded regular exports; corrupt historical data cannot stop startup."""
+        if directory.is_symlink():
+            return
         # Preserve exports produced by v0.1. Import is idempotent; newer records win.
-        for path in (directory / "investigations").glob("*.json"):
+        for path in directory.glob("*.json"):
             try:
-                record = json.loads(path.read_text(encoding="utf-8"))
+                if path.is_symlink() or not path.is_file():
+                    continue
+                descriptor = os.open(
+                    path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | os.O_NONBLOCK
+                )
+                with os.fdopen(descriptor, "rb") as source:
+                    if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                        continue
+                    raw = source.read(MAX_LEGACY_RECORD_BYTES + 1)
+                if len(raw) > MAX_LEGACY_RECORD_BYTES:
+                    continue
+                record = json.loads(raw)
+                if not valid_investigation_record(record):
+                    continue
                 remediation = record.get("remediation") or {}
                 event = None
-                if remediation.get("verification", {}).get("all_healthy"):
+                if remediation.get("verification", {}).get("all_healthy") is True:
                     event = {
                         "id": f"legacy-recovery-{record['id']}",
                         "episode_id": record["episode_id"],
@@ -57,7 +156,7 @@ class RecordStore:
                         },
                     }
                 self.save_many([("investigation", record)], event, ignore_existing=True)
-            except (ValueError, KeyError, TypeError):
+            except (OSError, ValueError, KeyError, TypeError, RecursionError):
                 continue
 
     @contextmanager
@@ -77,9 +176,10 @@ class RecordStore:
         ignore_existing: bool = False,
     ) -> None:
         with self.connection() as db:
+            records_written = False
             for kind, record in records:
                 insert = "INSERT OR IGNORE" if ignore_existing else "INSERT OR REPLACE"
-                db.execute(
+                cursor = db.execute(
                     f"{insert} INTO records VALUES (?, ?, ?, ?, ?)",
                     (
                         record["id"],
@@ -89,7 +189,10 @@ class RecordStore:
                         json.dumps(record, allow_nan=False),
                     ),
                 )
-            if event:
+                records_written |= cursor.rowcount > 0
+            # A skipped legacy export cannot add a recovery event for a newer
+            # record. Keep record and event acceptance in the same transaction.
+            if event and (not ignore_existing or records_written):
                 insert_event = "INSERT OR IGNORE" if ignore_existing else "INSERT"
                 db.execute(
                     f"{insert_event} INTO events(id,episode_id,created_at,type,payload) VALUES (?,?,?,?,?)",
@@ -106,7 +209,7 @@ class RecordStore:
         self.save_many([], event)
 
     def read(self, kind: str, record_id: str) -> dict:
-        if len(record_id) != 32 or any(c not in "0123456789abcdef" for c in record_id):
+        if not _record_id(record_id):
             raise FileNotFoundError("Record not found")
         with self.connection() as db:
             row = db.execute(
@@ -114,7 +217,10 @@ class RecordStore:
             ).fetchone()
         if row is None:
             raise FileNotFoundError("Record not found")
-        return json.loads(row[0])
+        record = _decode_record(row[0])
+        if record is None:
+            raise FileNotFoundError("Record not found")
+        return record
 
     def recent(self, kind: str, limit: int = 50) -> list[dict]:
         with self.connection() as db:
@@ -122,7 +228,7 @@ class RecordStore:
                 "SELECT payload FROM records WHERE kind=? ORDER BY created_at DESC LIMIT ?",
                 (kind, max(1, min(limit, 100))),
             ).fetchall()
-        return [json.loads(row[0]) for row in rows]
+        return [record for row in rows if (record := _decode_record(row[0])) is not None]
 
     def events(self, episode_id: str, limit: int = 100) -> list[dict]:
         with self.connection() as db:

@@ -3,14 +3,19 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from . import __version__
-from .lab import SCENARIO_BY_ID, SCENARIOS
-from .models import (
+from incidentlab import __version__
+from incidentlab.api.frontend import mount_frontend
+from incidentlab.api.security import (
+    LocalRequestSecurity,
+    response_security_headers,
+    safe_provider_status,
+)
+from incidentlab.application import ConflictError, IncidentService
+from incidentlab.domain.models import (
     InjectRequest,
     InvestigateRequest,
     ProbeRequest,
@@ -18,11 +23,10 @@ from .models import (
     RehearseRequest,
     RemediateRequest,
 )
-from .service import ConflictError, IncidentService
-from .web import mount_frontend
+from incidentlab.lab.scenarios import SCENARIO_BY_ID, SCENARIOS
 
 
-def create_app(directory: Path | None = None) -> FastAPI:
+def create_app(directory: Path | None = None, *, allowed_hosts: list[str] | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         service = IncidentService(
@@ -35,27 +39,15 @@ def create_app(directory: Path | None = None) -> FastAPI:
             service.close()
 
     app = FastAPI(title="IncidentLab", version=__version__, lifespan=lifespan)
+    app.add_middleware(LocalRequestSecurity, allowed_hosts=allowed_hosts)
 
-    @app.middleware("http")
-    async def local_browser_origin(request: Request, call_next):
-        origin = request.headers.get("origin")
-        if request.method not in {"GET", "HEAD", "OPTIONS"}:
-            if request.headers.get("sec-fetch-site") == "cross-site" or (
-                origin and urlsplit(origin).netloc != request.headers.get("host")
-            ):
-                return JSONResponse(
-                    status_code=403,
-                    content={"detail": "Use the IncidentLab interface on this origin."},
-                )
-        response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "same-origin"
-        # FastAPI's interactive documentation loads its own Swagger/ReDoc assets.
-        if request.url.path not in {"/docs", "/redoc", "/docs/oauth2-redirect"}:
-            response.headers["Content-Security-Policy"] = (
-                "default-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
-            )
-        return response
+    @app.exception_handler(Exception)
+    async def unexpected_error(request: Request, exc: Exception):
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "The operation could not complete. Check the local server logs."},
+            headers=response_security_headers(request.url.path, 500),
+        )
 
     @app.exception_handler(ConflictError)
     async def conflict_handler(request: Request, exc: ConflictError):
@@ -119,7 +111,11 @@ def create_app(directory: Path | None = None) -> FastAPI:
                 "The investigator returned an invalid or unsupported finding. No action was applied.",
             ) from exc
         except RuntimeError as exc:
-            raise HTTPException(502, str(exc)) from exc
+            status = safe_provider_status(exc)
+            provider = f" (provider HTTP {status})" if status is not None else ""
+            raise HTTPException(
+                502, f"The investigator could not complete{provider}. No action was applied."
+            ) from None
 
     @app.post("/api/remediate")
     def remediate(body: RemediateRequest, request: Request):
@@ -144,8 +140,10 @@ def create_app(directory: Path | None = None) -> FastAPI:
                 502,
                 "The planner returned an invalid or unsupported experiment. No new plan was authorized.",
             ) from exc
-        except RuntimeError as exc:
-            raise HTTPException(502, str(exc)) from exc
+        except RuntimeError:
+            raise HTTPException(
+                502, "The rehearsal did not complete. No new plan was authorized."
+            ) from None
 
     @app.post("/api/promote")
     def promote(body: PromoteRequest, request: Request):
@@ -155,8 +153,11 @@ def create_app(directory: Path | None = None) -> FastAPI:
     def prove_recovery(rehearsal_id: str, request: Request):
         try:
             return request.app.state.service.prove(rehearsal_id)
-        except RuntimeError as exc:
-            raise HTTPException(502, str(exc)) from exc
+        except RuntimeError:
+            raise HTTPException(
+                502,
+                "The recovery proof did not complete. No promotion is authorized by this attempt.",
+            ) from None
 
     @app.get("/api/rehearsals/{rehearsal_id}/proof")
     def proof_artifact(rehearsal_id: str, request: Request):

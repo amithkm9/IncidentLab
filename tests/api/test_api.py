@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from incidentlab import service
+from incidentlab import application as service
 
 
 def find(client, scenario="wrong_route"):

@@ -13,12 +13,13 @@ from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
 
-from .. import __version__
-from ..investigator import investigate
-from ..lab import SCENARIO_BY_ID, Lab
-from ..models import Action
-from ..rehearsal import run_rehearsal
-from ..tools import Toolbox
+from incidentlab import __version__
+from incidentlab.domain.models import Action
+from incidentlab.investigation.agents import investigate
+from incidentlab.investigation.tools import Toolbox
+from incidentlab.lab import Lab
+from incidentlab.lab.scenarios import SCENARIO_BY_ID
+from incidentlab.recovery.rehearsal import run_rehearsal
 
 # This manifest is evaluator-owned ground truth. It is never supplied to either
 # decision procedure. Keep case identities fixed when comparing report artifacts.

@@ -3,9 +3,10 @@ import urllib.request
 
 import pytest
 
-from incidentlab.lab import SCENARIO_BY_ID, Lab
-from incidentlab.models import Action
-from incidentlab.rehearsal import run_rehearsal
+from incidentlab.domain.models import Action
+from incidentlab.lab import Lab
+from incidentlab.lab.scenarios import SCENARIO_BY_ID
+from incidentlab.recovery.rehearsal import run_rehearsal
 
 
 @pytest.mark.parametrize(

@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from incidentlab.domain.models import Action
 from incidentlab.evaluation import adaptive as evaluation
-from incidentlab.models import Action
 
 
 def verification(healthy, count=3):
@@ -324,7 +324,7 @@ def test_fixed_order_is_bounded_and_does_not_inspect_scenario_metadata(monkeypat
         calls.append((tuple(actions), probe_count))
         return experiment(plan_id, [action.value for action in actions], False, probe_count)
 
-    monkeypatch.setattr(evaluation, "_experiment", measured)
+    monkeypatch.setattr(evaluation, "measure_plan", measured)
     report = evaluation.run_ordered_rehearsal(source, max_experiments=4, probe_count=5)
     assert calls == [((), 5), *((((action,), 5)) for action in evaluation.EXECUTABLE_ACTIONS[:4])]
     assert report["budget"]["used_experiments"] == 4
@@ -344,7 +344,7 @@ def test_ordered_controls_do_not_spend_candidate_budget(monkeypatch, telemetry, 
         calls.append(plan_id)
         return experiment(plan_id, healthy=healthy, count=probe_count)
 
-    monkeypatch.setattr(evaluation, "_experiment", measured)
+    monkeypatch.setattr(evaluation, "measure_plan", measured)
     report = evaluation.run_ordered_rehearsal(SimpleNamespace(snapshot=lambda: snapshot))
     assert calls == ["control"]
     assert report["budget"]["stop_reason"] == expected
@@ -361,7 +361,7 @@ def test_ordered_search_stops_after_first_measured_success(monkeypatch):
             plan_id, [action.value for action in actions], plan_id == "plan-02", probe_count
         )
 
-    monkeypatch.setattr(evaluation, "_experiment", measured)
+    monkeypatch.setattr(evaluation, "measure_plan", measured)
     report = evaluation.run_ordered_rehearsal(SimpleNamespace(snapshot=lambda: snapshot))
     assert calls == ["control", "plan-01", "plan-02"]
     assert report["recommended_plan_id"] == "plan-02"
@@ -376,7 +376,7 @@ def test_ordered_experiment_failure_retains_prior_measured_outcomes(monkeypatch)
             raise RuntimeError("Experiment failed")
         return experiment(plan_id, [action.value for action in actions], False, probe_count)
 
-    monkeypatch.setattr(evaluation, "_experiment", measured)
+    monkeypatch.setattr(evaluation, "measure_plan", measured)
     report = evaluation.run_ordered_rehearsal(SimpleNamespace(snapshot=lambda: snapshot))
     assert report["error"]["code"] == "experiment_error"
     assert report["recommended_plan_id"] is None

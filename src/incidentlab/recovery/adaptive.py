@@ -21,8 +21,8 @@ from typing import Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from .lab import Lab, LabSnapshot
-from .models import Action
+from incidentlab.domain.models import Action
+from incidentlab.lab import Lab, LabSnapshot
 
 ALLOWED_ACTIONS = tuple(action.value for action in Action if action != Action.none)
 ACTION_CATALOG = {

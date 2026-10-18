@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from incidentlab.api import create_app
-from incidentlab.models import Action
+from incidentlab.domain.models import Action
 
 
 def inject(client, scenario="route_and_release"):
@@ -116,11 +116,11 @@ def test_rehearsal_contract_and_busy_gate(client):
 
 def test_restart_preserves_history_but_not_remediation_authority(tmp_path: Path):
     directory = tmp_path / "restart"
-    with TestClient(create_app(directory)) as client:
+    with TestClient(create_app(directory), base_url="http://127.0.0.1") as client:
         inject(client, "wrong_route")
         finding = client.post("/api/investigate", json={}).json()
         record = rehearse(client, 1)
-    with TestClient(create_app(directory)) as client:
+    with TestClient(create_app(directory), base_url="http://127.0.0.1") as client:
         workspace = client.get("/api/workspace").json()
         assert workspace["status"]["episode_id"] != record["episode_id"]
         assert workspace["latest_investigation"] is None

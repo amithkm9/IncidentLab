@@ -4,9 +4,9 @@ from dataclasses import replace
 
 import pytest
 
-from incidentlab.adaptive import run_adaptive_rehearsal
-from incidentlab.investigator import validate_finding
-from incidentlab.models import Action, Cause, Evidence, Finding
+from incidentlab.domain.models import Action, Cause, Evidence, Finding
+from incidentlab.investigation.agents import validate_finding
+from incidentlab.recovery.adaptive import run_adaptive_rehearsal
 
 
 def test_http_200_partial_repair_is_rejected_and_complete_plan_is_auditable(client):

@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from incidentlab import adaptive
-from incidentlab.models import Action
+from incidentlab.domain.models import Action
+from incidentlab.recovery import adaptive
 
 
 class ScriptedPlanner:

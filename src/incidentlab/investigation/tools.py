@@ -9,8 +9,8 @@ from typing import Any, Literal
 
 from pydantic import Field, ValidationError
 
-from .lab import Lab
-from .models import Evidence, StrictModel, ToolTrace
+from incidentlab.domain.models import Evidence, StrictModel, ToolTrace
+from incidentlab.lab import Lab
 
 
 class EmptyArgs(StrictModel):

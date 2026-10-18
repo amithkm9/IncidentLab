@@ -17,5 +17,5 @@ def lab(tmp_path: Path):
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch):
     monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
-    with TestClient(create_app(tmp_path / "api")) as client:
+    with TestClient(create_app(tmp_path / "api"), base_url="http://127.0.0.1") as client:
         yield client

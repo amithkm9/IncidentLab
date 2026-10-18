@@ -17,12 +17,13 @@ from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
 
-from .. import __version__
-from ..contracts import CHECKOUT_CONTRACT
-from ..lab import SCENARIO_BY_ID, Lab
-from ..models import Action
-from ..rehearsal import _experiment
-from . import adaptive as policy_evaluation
+from incidentlab import __version__
+from incidentlab.domain.contracts import CHECKOUT_CONTRACT
+from incidentlab.domain.models import Action
+from incidentlab.evaluation import adaptive as policy_evaluation
+from incidentlab.lab import Lab
+from incidentlab.lab.scenarios import SCENARIO_BY_ID
+from incidentlab.recovery.rehearsal import measure_plan
 
 MANIFEST = {
     "name": "incidentlab-semantic-recovery-v1",
@@ -145,7 +146,7 @@ def _paired_trials(directory: Path, scenario_id: str, seed: int, probe_count: in
         result["source_fingerprint"] = snapshot.fingerprint()
         for trial in trials:
             try:
-                measured = _experiment(
+                measured = measure_plan(
                     snapshot,
                     directory / trial["id"],
                     trial["id"],

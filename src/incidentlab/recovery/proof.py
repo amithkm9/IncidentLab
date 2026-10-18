@@ -17,8 +17,8 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .lab import Lab, LabSnapshot
-from .models import Action
+from incidentlab.domain.models import Action
+from incidentlab.lab import Lab, LabSnapshot
 
 PROOF_PROBE_COUNT = 9
 MAX_PROOF_TRIALS = 4
