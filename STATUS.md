@@ -64,7 +64,7 @@ Credentials are not part of tracked source or benchmark summaries.
 [Hosted CI for the reviewed implementation](https://github.com/amithkm9/IncidentLab/actions/runs/39114644943)
 passed on `bc8fe51`: Docker/frontend builds, 345 backend tests, 47 frontend tests,
 Python quality checks, and all four offline evaluation smoke runs. The complete
-log contained zero warning lines. The subsequent audit-closure commit changes
+log contained zero warning lines. The subsequent audit-closure commits change
 only documentation.
 
 The current Docker suite passed **345 tests in 44.36 seconds**, with warnings

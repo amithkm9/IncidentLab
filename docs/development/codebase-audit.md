@@ -107,6 +107,5 @@ The implementation and public documentation were pushed to `main` in four
 focused commits ending at `bc8fe51`. [GitHub Actions run 39114644943](https://github.com/amithkm9/IncidentLab/actions/runs/39114644943)
 passed the Docker build, **345 backend tests**, **47 frontend tests**, Ruff checks,
 and all four offline smoke evaluations. Its full log contained zero warning
-lines. The following documentation-only commit records this completed checklist;
+lines. Subsequent documentation-only commits record this completed checklist;
 application code, tests, dependencies, and build configuration are unchanged.
-
