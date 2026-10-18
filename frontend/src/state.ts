@@ -20,6 +20,7 @@ interface AppState {
   record: InvestigationRecord | null;
   rehearsal: RehearsalRecord | null;
   workspace: Workspace | null;
+  workspaceFresh: boolean;
   history: History | null;
   busy: boolean;
   archive: boolean;
@@ -33,6 +34,7 @@ export const state: AppState = {
   record: null,
   rehearsal: null,
   workspace: null,
+  workspaceFresh: false,
   history: null,
   busy: false,
   archive: false,

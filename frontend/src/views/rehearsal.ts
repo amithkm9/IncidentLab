@@ -1,3 +1,4 @@
+import { artifactPath } from "../api/paths";
 import type { RehearsalRecord, RehearsalReport } from "../domain";
 import { $, el, text, required } from "../dom";
 import { state, recommendedPlan, isCurrent } from "../state";
@@ -29,9 +30,7 @@ export function renderRehearsal(record: RehearsalRecord | null) {
   $("decision-trail-section").hidden = true;
   if (!record || !report) return;
   const plan = recommendedPlan();
-  const controlHealthy =
-    report.control?.verification?.all_healthy ||
-    report.summary?.control_healthy;
+  const controlHealthy = report.control.verification.all_healthy;
   const controlSemantic = semanticState(report.control?.verification);
   const planSemantic = semanticState(plan?.verification);
   const redundant = record.proof?.summary.conclusion === "redundant_action";
@@ -98,12 +97,7 @@ export function renderRehearsal(record: RehearsalRecord | null) {
           .length,
     ),
   );
-  text(
-    "minimal-actions",
-    controlHealthy
-      ? "0"
-      : (report.summary?.minimal_action_count ?? plan?.actions.length ?? "—"),
-  );
+  text("minimal-actions", controlHealthy ? "0" : (plan?.actions.length ?? "—"));
   text("rehearsal-duration", duration(report.elapsed_ms));
   renderRehearsalRun(report);
   renderExperiments();
@@ -121,7 +115,7 @@ export function renderRehearsal(record: RehearsalRecord | null) {
   $("rehearsal-limitations").replaceChildren(
     ...(report.limitations || []).map((limitation) => el("li", "", limitation)),
   );
-  $("rehearsal-download").href = `/api/rehearsals/${record.id}`;
+  $("rehearsal-download").href = artifactPath("rehearsals", record.id);
   $("rehearsal-download").download = `incidentlab-rehearsal-${record.id}.json`;
   if (record.promotion)
     verificationNotice(

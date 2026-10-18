@@ -1,4 +1,4 @@
-import "./style.css";
+import "./styles/index.css";
 import { $, text, selected } from "./dom";
 import { state } from "./state";
 import {
@@ -13,6 +13,8 @@ import { verificationSummary, recoveryVerified } from "./verification";
 import { switchView, switchTab } from "./navigation";
 import {
   operation,
+  mutation,
+  openArchive,
   refreshHistory,
   refreshWorkspace,
   loadConfiguration,
@@ -48,12 +50,15 @@ $("nav-history").setAttribute("aria-label", "Incident history");
 $("nav-workbench").addEventListener("click", () => switchView("workbench"));
 $("nav-history").addEventListener("click", () => {
   switchView("history");
-  if (state.history) renderHistory(state.history);
+  if (state.history) renderHistory(state.history, openArchive);
   else
-    renderHistory({
-      investigations: state.workspace?.history || [],
-      rehearsals: [],
-    });
+    renderHistory(
+      {
+        investigations: state.workspace?.history || [],
+        rehearsals: [],
+      },
+      openArchive,
+    );
   operation("Loading saved incident history…", async () => {
     await refreshHistory();
     text(
@@ -88,10 +93,10 @@ $("expand-evidence").addEventListener("click", () => {
   updateEvidenceToggle();
 });
 $("history-search").addEventListener("input", () =>
-  renderHistory(state.history),
+  renderHistory(state.history, openArchive),
 );
 $("demo").addEventListener("click", () =>
-  operation(
+  mutation(
     "Starting a route fault that masks silently incorrect checkout totals…",
     async () => {
       $("scenario").value = "route_and_price_drift";
@@ -143,7 +148,7 @@ $("scenario").addEventListener("change", scenarioDescription);
 $("mode").addEventListener("change", modeNote);
 $("scenario-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  operation(
+  mutation(
     "Starting the scenario and sending real checkout requests…",
     async () => {
       await api("/api/inject", {
@@ -163,7 +168,7 @@ $("scenario-form").addEventListener("submit", (event) => {
 });
 $("investigate-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  operation(
+  mutation(
     $("mode").value === "baseline"
       ? "Inspecting logs, service health, changes, metrics, and runbooks…"
       : "Mistral is investigating. This bounded investigation can take a few minutes…",
@@ -185,7 +190,7 @@ $("investigate-form").addEventListener("submit", (event) => {
   );
 });
 $("probe").addEventListener("click", () =>
-  operation("Sending five fresh checkout requests…", async () => {
+  mutation("Sending five fresh checkout requests…", async () => {
     const result = await api("/api/probe", { count: 5 });
     await refreshWorkspace();
     text(
@@ -199,7 +204,7 @@ $("go-rehearse").addEventListener("click", () => switchTab("rehearsal", true));
 $("rehearsal-strategy").addEventListener("change", rehearsalStrategyNote);
 $("max-actions").addEventListener("change", rehearsalStrategyNote);
 $("remediate").addEventListener("click", () =>
-  operation(
+  mutation(
     "Applying the single proposed fix and verifying fresh requests…",
     async () => {
       const record = state.record;
@@ -221,7 +226,7 @@ $("rehearse").addEventListener("click", () => {
   const strategy = selected("rehearsal-strategy", strategyNames);
   if (strategy !== "exhaustive" && !$("max-experiments").reportValidity())
     return;
-  operation(
+  mutation(
     strategy === "mistral"
       ? "Mistral is selecting experiments from lab observations. Isolated tests may take a few minutes; the active lab stays unchanged…"
       : "Testing recovery plans in isolated copies. The active lab stays unchanged; this may take a minute…",
@@ -256,7 +261,7 @@ $("rehearse").addEventListener("click", () => {
   );
 });
 $("prove").addEventListener("click", () =>
-  operation(
+  mutation(
     "Testing the full plan and removing each fix in isolated copies. Up to 36 requests; no model calls…",
     async () => {
       const record = state.rehearsal;
@@ -291,7 +296,7 @@ $("prove").addEventListener("click", () =>
   ),
 );
 $("promote").addEventListener("click", () =>
-  operation(
+  mutation(
     "Promoting the tested recovery plan and verifying fresh traffic in the active lab…",
     async () => {
       const record = state.rehearsal;

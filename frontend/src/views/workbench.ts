@@ -146,6 +146,10 @@ export function renderNextStep() {
     title = "Inspect the saved evidence";
     description =
       "This investigation belongs to a saved lab snapshot. Explore its tool trail or download the postmortem.";
+  } else if (!state.workspaceFresh) {
+    title = "Refresh the active workspace";
+    description =
+      "The latest lab state has not been confirmed. Saved observations remain visible, but another change requires a successful refresh.";
   } else if (recovered) {
     title = "Recovery, with proof";
     description =

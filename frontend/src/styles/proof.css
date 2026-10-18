@@ -1,0 +1,233 @@
+/* Counterfactual proof: compare the full intervention with each omitted action. */
+.proof-section {
+  margin: 25px 0;
+  padding: 22px;
+  border: 1px solid #d9e6db;
+  border-radius: 12px;
+  background: #fafcf9;
+  min-width: 0;
+}
+.proof-heading {
+  margin-bottom: 15px;
+  align-items: flex-start;
+}
+.proof-heading h3 {
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+.proof-heading .eyebrow {
+  font-size: 10px;
+}
+.proof-heading > .tag {
+  flex-shrink: 0;
+}
+.proof-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.proof-intro > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.proof-intro > .button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+.proof-summary,
+.proof-trial,
+.proof-necessity {
+  min-width: 0;
+}
+.proof-summary {
+  padding: 16px 18px;
+  margin-top: 18px;
+  border: 1px solid #d8e5d4;
+  border-radius: 9px;
+  background: #edf5e9;
+}
+.proof-summary.caution {
+  border-color: #eed9bc;
+  background: #fff7eb;
+}
+.proof-summary > strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 5px;
+}
+.proof-summary > p {
+  margin: 0;
+  font-size: 13px;
+  color: #4f614f;
+}
+#proof-context {
+  margin: 12px 0 17px;
+}
+.proof-trials {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.proof-trial {
+  background: #fff;
+  padding: 16px;
+  border: 1px solid #e4e9e2;
+  border-radius: 9px;
+  overflow-wrap: anywhere;
+}
+.proof-trial.passed {
+  border-color: #bad4b5;
+  box-shadow: inset 0 3px #80a86c;
+}
+.proof-trial.failed {
+  box-shadow: inset 0 3px #d3a078;
+}
+.proof-trial.incomplete {
+  border-style: dashed;
+}
+.proof-trial-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.proof-trial-heading h4 {
+  min-width: 0;
+  flex: 1 1 140px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+.proof-trial-heading > .result-pill {
+  flex-shrink: 0;
+}
+.proof-trial-actions {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.proof-http {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+.proof-http > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.proof-http .http-codes {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.proof-trial .contract-inline-mismatch {
+  font-size: 12px;
+}
+.proof-trial .contract-values {
+  grid-template-columns: minmax(0, 1fr);
+}
+.proof-trial .contract-check-heading {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.proof-trial-meta {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 12px 0 0;
+}
+.proof-trial-error {
+  margin: 10px 0 0;
+  color: var(--red);
+  font-size: 13px;
+}
+.proof-necessity {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.necessity-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  align-items: center;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.necessity-row > strong {
+  flex: 1 1 190px;
+}
+.necessity-row > span {
+  color: var(--orange);
+}
+.necessity-row.supported > span {
+  color: var(--green);
+}
+.necessity-row > small {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--muted);
+}
+.proof-digest-label {
+  margin: 18px 0 6px;
+  color: var(--muted);
+}
+.proof-digest {
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+@media (max-width: 1100px) {
+  .proof-trials {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 540px) {
+  .proof-section {
+    padding: 16px;
+  }
+  .proof-heading h3 {
+    font-size: 19px;
+  }
+  .proof-summary {
+    padding: 14px;
+  }
+  .proof-trial {
+    padding: 14px;
+  }
+  .proof-intro > .button {
+    width: 100%;
+  }
+  .button,
+  .text-button {
+    font-size: 14px;
+  }
+  .button.small {
+    font-size: 12px;
+  }
+  .health-detail > span,
+  .metric-foot,
+  .history-row-meta,
+  .history-metrics .metric-foot,
+  .workflow-checklist small {
+    font-size: 12px;
+  }
+  .tab {
+    font-size: 12px;
+  }
+  .tab-step,
+  .empty-tags span,
+  .evidence-heading > .overline,
+  .plan-label + small,
+  .trace-duration {
+    font-size: 10px;
+  }
+  .export-links .text-link {
+    font-size: 12px;
+  }
+}

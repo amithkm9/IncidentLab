@@ -1,3 +1,5 @@
+import { validResponse } from "./validation";
+import { proofPath } from "./paths";
 import type {
   Action,
   Config,
@@ -12,7 +14,7 @@ import type {
   Strategy,
   Verification,
   Workspace,
-} from "./domain";
+} from "../domain";
 
 interface Responses {
   "/api/config": Config;
@@ -95,9 +97,15 @@ async function request(path: string, init: RequestInit): Promise<unknown> {
       response.status,
     );
   }
+  if (!validResponse(path, payload)) {
+    throw new ApiError(
+      "The server returned an unexpected response format. The saved workspace was not replaced. Refresh the workspace before continuing.",
+      response.status,
+    );
+  }
   return payload;
 }
-/** Typed client contracts mirror the local Python API; JSON parsing failures are reported explicitly. */
+/** Validate response shapes before exposing the local API contracts to renderers. */
 export async function api<P extends ApiPath>(
   path: P,
   body?: RequestFor<P>,
@@ -115,7 +123,7 @@ export async function api<P extends ApiPath>(
   return payload as ResponseFor<P>;
 }
 export async function requestRecoveryProof(id: string): Promise<ProofResponse> {
-  return (await request(`/api/rehearsals/${encodeURIComponent(id)}/proof`, {
+  return (await request(proofPath(id), {
     method: "POST",
   })) as ProofResponse;
 }

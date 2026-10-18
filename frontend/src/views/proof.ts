@@ -1,3 +1,4 @@
+import { proofPath } from "../api/paths";
 import type { ProofTrial, RehearsalRecord } from "../domain";
 import { $, el, text } from "../dom";
 import { state, isCurrent, recommendedPlan } from "../state";
@@ -155,7 +156,6 @@ export function renderProof(record: RehearsalRecord | null): void {
     ...proof.limitations.map((limitation) => el("li", "", limitation)),
   );
   text("proof-digest", proof.digest.value);
-  $("proof-download").href =
-    `/api/rehearsals/${encodeURIComponent(record.id)}/proof`;
+  $("proof-download").href = proofPath(record.id);
   $("proof-download").download = `incidentlab-proof-${proof.id}.json`;
 }

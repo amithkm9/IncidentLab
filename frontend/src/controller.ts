@@ -1,8 +1,9 @@
+import { artifactPath } from "./api/paths";
 import type { Status, Scenario, Mode, Strategy } from "./domain";
 import { $, text, el } from "./dom";
 import { state, isCurrent, recommendedPlan } from "./state";
 import { modeNames, strategyNames } from "./constants";
-import { proofBlocksPromotion } from "./recovery";
+import { proofBlocksPromotion, mutationsLocked } from "./recovery";
 import { recoveryVerified } from "./verification";
 import { api, ApiError } from "./api";
 import { switchView, switchTab } from "./navigation";
@@ -19,8 +20,7 @@ import { renderRehearsal } from "./views/rehearsal";
 import { renderHistory } from "./views/history";
 
 function controls() {
-  const locked =
-    state.busy || !!state.status?.busy || state.archive || !state.status;
+  const locked = mutationsLocked(state);
   document
     .querySelectorAll<
       | HTMLButtonElement
@@ -57,15 +57,22 @@ function controls() {
   document.body.classList.toggle("is-busy", state.busy || !!state.status?.busy);
 }
 
-export async function operation(message: string, fn: () => Promise<void>) {
+export async function operation(
+  message: string,
+  fn: () => Promise<void>,
+  mutating = false,
+) {
   if (state.busy) return;
   state.busy = true;
+  if (mutating) state.workspaceFresh = false;
   $("error").hidden = true;
   text("activity", message);
   controls();
   try {
     await fn();
   } catch (error) {
+    if (mutating || (error instanceof ApiError && error.connectionLost))
+      state.workspaceFresh = false;
     if (error instanceof ApiError && error.connectionLost) {
       text("connection", "Connection interrupted");
       $("connection-dot").classList.add("offline");
@@ -90,6 +97,13 @@ export async function operation(message: string, fn: () => Promise<void>) {
     }
   } finally {
     state.busy = false;
+    if (!state.workspaceFresh && !$("error").hidden) {
+      text(
+        "activity",
+        "The active state is unconfirmed. Refresh the workspace before another lab operation.",
+      );
+    }
+    renderNextStep();
     controls();
   }
 }
@@ -98,9 +112,9 @@ export async function openArchive(id: string) {
   await operation(
     "Opening the saved investigation and its evidence…",
     async () => {
-      const record = await api(`/api/investigations/${id}`);
+      const record = await api(artifactPath("investigations", id));
       const rehearsal = record.rehearsal_id
-        ? await api(`/api/rehearsals/${record.rehearsal_id}`)
+        ? await api(artifactPath("rehearsals", record.rehearsal_id))
         : null;
       state.archive = true;
       $("archive-notice").hidden = false;
@@ -119,25 +133,37 @@ export async function openArchive(id: string) {
 }
 
 export async function refreshWorkspace() {
-  const workspace = await api("/api/workspace");
-  state.workspace = workspace;
-  renderStatus(workspace.status);
-  scheduleBusyRefresh(workspace.status);
-  if (!state.archive) {
-    renderFinding(workspace.latest_investigation || null);
-    renderRehearsal(workspace.latest_rehearsal || null);
+  state.workspaceFresh = false;
+  try {
+    const workspace = await api("/api/workspace");
+    state.workspace = workspace;
+    state.workspaceFresh = true;
+    renderStatus(workspace.status);
+    scheduleBusyRefresh(workspace.status);
+    if (!state.archive) {
+      renderFinding(workspace.latest_investigation || null);
+      renderRehearsal(workspace.latest_rehearsal || null);
+    }
+    renderTimeline(workspace.events);
+    renderSummary(workspace.summary);
+    renderNextStep();
+    controls();
+    return workspace;
+  } catch (error) {
+    state.workspaceFresh = false;
+    controls();
+    throw error;
   }
-  renderTimeline(workspace.events);
-  renderSummary(workspace.summary);
-  renderNextStep();
-  controls();
-  return workspace;
+}
+
+export async function mutation(message: string, fn: () => Promise<void>) {
+  await operation(message, fn, true);
 }
 
 export async function refreshHistory() {
   await refreshWorkspace();
   const history = await api("/api/history");
-  renderHistory(history);
+  renderHistory(history, openArchive);
 }
 
 export async function loadConfiguration() {

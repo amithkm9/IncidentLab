@@ -18,6 +18,22 @@ export function matchesSnapshot(
   );
 }
 
+/** A cached snapshot cannot authorize another mutation after refresh failure. */
+export function mutationsLocked(context: {
+  workspaceFresh: boolean;
+  busy: boolean;
+  archive: boolean;
+  status: Status | null;
+}): boolean {
+  return (
+    !context.workspaceFresh ||
+    context.busy ||
+    context.archive ||
+    !context.status ||
+    context.status.busy === true
+  );
+}
+
 /** A failed or stale optional proof cannot be bypassed by promoting its rehearsal. */
 export function proofBlocksPromotion(record: RehearsalRecord | null): boolean {
   if (!record) return true;

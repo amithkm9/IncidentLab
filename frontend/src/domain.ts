@@ -99,13 +99,14 @@ export interface Investigation {
   traces: ToolTrace[];
   elapsed_ms: number;
   model?: string | null;
-  input_tokens: number;
-  output_tokens: number;
+  input_tokens?: number;
+  output_tokens?: number;
   estimated_cost_usd?: number | null;
-  cost_note: string;
+  cost_note?: string;
 }
 export interface Recovery {
-  verification: Verification;
+  verification: Pick<Verification, "all_healthy" | "statuses"> &
+    Partial<Verification>;
   actions?: Action[];
   action?: Action;
   created_at?: string;
@@ -119,9 +120,9 @@ export interface BoundRecord {
 }
 export interface InvestigationRecord extends BoundRecord {
   created_at: string;
-  scenario_id: string;
-  question: string;
-  observation: Status;
+  scenario_id?: string;
+  question?: string;
+  observation: Pick<Status, "requests" | "errors"> & Partial<Status>;
   result: Investigation;
   remediation?: Recovery | null;
   episode_recovery?: Recovery | null;
@@ -176,7 +177,7 @@ export interface RehearsalReport {
   source_fingerprint?: string;
   decision_trace?: Decision[];
   budget?: {
-    max_experiments?: number;
+    max_experiments?: number | null;
     used_experiments: number;
     stop_reason: string;
     max_elapsed_seconds?: number;

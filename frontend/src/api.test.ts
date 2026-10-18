@@ -43,6 +43,19 @@ describe("HTTP boundary failures", () => {
     );
     await expect(api("/api/workspace")).rejects.toBeInstanceOf(ApiError);
   });
+  it("rejects well-formed JSON with an invalid workspace shape", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ status: null }), { status: 200 }),
+        ),
+    );
+    await expect(api("/api/workspace")).rejects.toMatchObject({
+      message: expect.stringContaining("unexpected response format"),
+    });
+  });
   it("requests an explicit proof without a request body or automatic retry", async () => {
     const fetch = vi
       .fn()

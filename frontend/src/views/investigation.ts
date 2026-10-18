@@ -1,3 +1,4 @@
+import { artifactPath } from "../api/paths";
 import type { InvestigationRecord } from "../domain";
 import { $, el, text, button, required } from "../dom";
 import { state, isCurrent } from "../state";
@@ -97,9 +98,9 @@ export function renderFinding(record: InvestigationRecord | null) {
     $("citations").append(
       el("span", "subtle", "No diagnostic evidence was available."),
     );
-  $("download").href = `/api/investigations/${record.id}`;
+  $("download").href = artifactPath("investigations", record.id);
   $("download").download = `incidentlab-${record.id}.json`;
-  $("postmortem").href = `/api/postmortems/${record.id}`;
+  $("postmortem").href = artifactPath("postmortems", record.id);
   $("postmortem").download = `incidentlab-${record.id}-postmortem.md`;
   $("traces").replaceChildren(
     ...(result.traces || []).map((trace) => {

@@ -1,114 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type {
-  RecoveryProof,
-  RehearsalRecord,
-  Status,
-  Verification,
-} from "./domain";
 import {
   matchesSnapshot,
+  mutationsLocked,
   proofBlocksPromotion,
   proofConclusion,
 } from "./recovery";
 
-const status: Status = {
-  episode_id: "episode-1",
-  revision: 2,
-  window: 1,
-  scenario_id: "test",
-  seed: 42,
-  requests: 1,
-  errors: 1,
-  error_rate: 1,
-  median_latency_ms: 4,
-  telemetry_available: true,
-  recent_statuses: [502],
-  services: [],
-};
-const verified: Verification = {
-  requests: 1,
-  statuses: [200],
-  all_healthy: true,
-  all_http_healthy: true,
-  semantic_passed: true,
-  median_latency_ms: 2,
-};
-const proof: RecoveryProof = {
-  id: "proof-1",
-  schema_version: 1,
-  created_at: "2026-01-01",
-  rehearsal_id: "rehearsal-1",
-  plan_id: "plan-1",
-  episode_id: "episode-1",
-  revision: 2,
-  source_fingerprint: "source-hash",
-  source_unchanged: true,
-  contract: { id: "checkout-v1", version: 1 },
-  actions: ["restore_inventory_route"],
-  probe_count: 9,
-  trials: [],
-  necessity: [],
-  summary: {
-    full_plan_passed: true,
-    control_failed: true,
-    all_actions_necessary: true,
-    conclusion: "supported",
-    promotion_eligible: true,
-    planned_trials: 2,
-    completed_trials: 2,
-  },
-  budget: {
-    max_trials: 4,
-    max_requests: 36,
-    planned_trials: 2,
-    started_trials: 2,
-    completed_trials: 2,
-    probe_count_per_trial: 9,
-    planned_requests: 18,
-    completed_trial_requests: 18,
-    provider_calls: 0,
-    accounting_note: "Completed trials only.",
-  },
-  limitations: [],
-  digest: {
-    algorithm: "sha256",
-    value: "hash",
-    scope: "content",
-    signed: false,
-  },
-  error: null,
-  elapsed_ms: 100,
-};
-const record: RehearsalRecord = {
-  id: "rehearsal-1",
-  created_at: "2026-01-01",
-  scenario_id: "test",
-  episode_id: "episode-1",
-  revision: 2,
-  observation: status,
-  report: {
-    elapsed_ms: 1,
-    probe_count: 3,
-    max_actions: 1,
-    control: {
-      id: "control",
-      actions: [],
-      verification: verified,
-      elapsed_ms: 1,
-    },
-    experiments: [],
-    recommended_plan_id: "plan-1",
-    summary: {
-      tested_plans: 1,
-      successful_plans: 1,
-      minimal_action_count: 1,
-      control_healthy: false,
-    },
-    limitations: [],
-    source_fingerprint: "source-hash",
-  },
-  proof,
-};
+import { status, proof, record } from "./testing/fixtures";
 
 describe("snapshot and proof guards", () => {
   it("requires the same episode and revision", () => {
@@ -172,5 +70,32 @@ describe("snapshot and proof guards", () => {
       "smaller variant also passed",
     );
     expect(proofBlocksPromotion({ ...record, proof: redundant })).toBe(false);
+  });
+});
+
+describe("workspace refresh guard", () => {
+  it("locks an otherwise current snapshot until its refresh succeeds", () => {
+    const context = {
+      status,
+      busy: false,
+      archive: false,
+      workspaceFresh: false,
+    };
+    expect(mutationsLocked(context)).toBe(true);
+    expect(mutationsLocked({ ...context, workspaceFresh: true })).toBe(false);
+  });
+  it("keeps busy and archived workspaces read-only even when fresh", () => {
+    const context = {
+      status,
+      busy: false,
+      archive: false,
+      workspaceFresh: true,
+    };
+    expect(mutationsLocked({ ...context, busy: true })).toBe(true);
+    expect(mutationsLocked({ ...context, archive: true })).toBe(true);
+    expect(
+      mutationsLocked({ ...context, status: { ...status, busy: true } }),
+    ).toBe(true);
+    expect(mutationsLocked({ ...context, status: null })).toBe(true);
   });
 });

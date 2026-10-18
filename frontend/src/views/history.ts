@@ -1,3 +1,4 @@
+import { artifactPath } from "../api/paths";
 import type {
   History,
   InvestigationSummary,
@@ -7,7 +8,6 @@ import { $, el, button, link } from "../dom";
 import { state } from "../state";
 import { modeNames } from "../constants";
 import { dateTime } from "../format";
-import { openArchive } from "../controller";
 
 function emptyHistory(title: string, description: string) {
   const box = el("div", "history-empty");
@@ -15,7 +15,10 @@ function emptyHistory(title: string, description: string) {
   return box;
 }
 
-export function renderHistory(history: History | null) {
+export function renderHistory(
+  history: History | null,
+  openArchive: (id: string) => void | Promise<void>,
+) {
   state.history = history;
   const query = $("history-search").value.trim().toLocaleLowerCase();
   const matches = (item: InvestigationSummary | RehearsalHistory) => {
@@ -76,7 +79,7 @@ export function renderHistory(history: History | null) {
         button("Inspect →", "button secondary small", () =>
           openArchive(item.id),
         ),
-        link(`/api/postmortems/${item.id}`, "Postmortem ↗"),
+        link(artifactPath("postmortems", item.id), "Postmortem ↗"),
       );
       row.append(main, actions);
       return row;
@@ -117,7 +120,9 @@ export function renderHistory(history: History | null) {
         ),
       );
       const actions = el("div", "history-row-actions");
-      actions.append(link(`/api/rehearsals/${item.id}`, "Experiment JSON ↗"));
+      actions.append(
+        link(artifactPath("rehearsals", item.id), "Experiment JSON ↗"),
+      );
       row.append(main, actions);
       return row;
     }),
