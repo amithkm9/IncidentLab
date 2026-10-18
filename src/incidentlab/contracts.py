@@ -3,6 +3,7 @@
 These prices are the lab's product requirements, not inferred scenario labels
 or a copy of whatever the currently deployed pricing code happens to return.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -20,12 +21,18 @@ class CheckoutContract:
     prices: tuple[tuple[str, int], ...] = (("notebook", 1200), ("lamp", 4500), ("mug", 850))
 
     def __post_init__(self) -> None:
-        if (not isinstance(self.prices, tuple) or not self.prices
-                or any(not isinstance(item, tuple) or len(item) != 2 for item in self.prices)):
-            raise ValueError("Contract prices must be an immutable nonempty tuple of SKU/cent pairs")
-        if (len({sku for sku, _ in self.prices}) != len(self.prices)
-                or any(not isinstance(sku, str) or not sku or type(cents) is not int or cents < 0
-                       for sku, cents in self.prices)):
+        if (
+            not isinstance(self.prices, tuple)
+            or not self.prices
+            or any(not isinstance(item, tuple) or len(item) != 2 for item in self.prices)
+        ):
+            raise ValueError(
+                "Contract prices must be an immutable nonempty tuple of SKU/cent pairs"
+            )
+        if len({sku for sku, _ in self.prices}) != len(self.prices) or any(
+            not isinstance(sku, str) or not sku or type(cents) is not int or cents < 0
+            for sku, cents in self.prices
+        ):
             raise ValueError("Contract SKUs must be unique and prices nonnegative integer cents")
 
     @property
@@ -33,15 +40,24 @@ class CheckoutContract:
         return dict(self.prices)
 
     def definition(self) -> dict:
-        return {"id": self.id, "version": self.version, "currency": self.currency,
+        return {
+            "id": self.id,
+            "version": self.version,
+            "currency": self.currency,
             "expected_totals_cents": self.expected_totals_cents,
-            "required_fields": ["request_id", "sku", "total"], "additional_fields": False,
-            "total_unit": "major_currency_units", "maximum_total": 1_000_000_000,
-            "monetary_precision": "exact_integer_cents", "duplicate_json_keys": False}
+            "required_fields": ["request_id", "sku", "total"],
+            "additional_fields": False,
+            "total_unit": "major_currency_units",
+            "maximum_total": 1_000_000_000,
+            "monetary_precision": "exact_integer_cents",
+            "duplicate_json_keys": False,
+        }
 
     @property
     def sha256(self) -> str:
-        return hashlib.sha256(json.dumps(self.definition(), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        return hashlib.sha256(
+            json.dumps(self.definition(), sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
 
     def metadata(self) -> dict:
         return {**self.definition(), "sha256": self.sha256}
@@ -63,13 +79,22 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict:
     return result
 
 
-def validate_checkout_response(body: bytes | str, status: int, sku: str,
-                               contract: CheckoutContract = CHECKOUT_CONTRACT) -> dict:
+def validate_checkout_response(
+    body: bytes | str, status: int, sku: str, contract: CheckoutContract = CHECKOUT_CONTRACT
+) -> dict:
     """Validate actual response bytes without permissive float/schema coercion."""
     expected = contract.expected_totals_cents.get(sku)
-    check: dict[str, Any] = {"sku": sku, "expected_total_cents": expected,
-        "observed_total_cents": None, "observed_sku": None, "request_id": None,
-        "http_status": status, "evaluated": status == 200, "passed": False, "violations": []}
+    check: dict[str, Any] = {
+        "sku": sku,
+        "expected_total_cents": expected,
+        "observed_total_cents": None,
+        "observed_sku": None,
+        "request_id": None,
+        "http_status": status,
+        "evaluated": status == 200,
+        "passed": False,
+        "violations": [],
+    }
     violations = check["violations"]
     if status != 200:
         violations.append("http_status_not_ok")
@@ -79,8 +104,13 @@ def validate_checkout_response(body: bytes | str, status: int, sku: str,
     try:
         if not isinstance(body, (bytes, str)) or len(body) > 16_384:
             raise ValueError("Response must be bounded JSON text")
-        payload = json.loads(body, parse_float=Decimal, parse_int=Decimal,
-                             parse_constant=_reject_constant, object_pairs_hook=_unique_object)
+        payload = json.loads(
+            body,
+            parse_float=Decimal,
+            parse_int=Decimal,
+            parse_constant=_reject_constant,
+            object_pairs_hook=_unique_object,
+        )
     except (ValueError, UnicodeError, TypeError, RecursionError, DecimalException):
         violations.append("invalid_json")
         return check
@@ -113,7 +143,7 @@ def validate_checkout_response(body: bytes | str, status: int, sku: str,
             # Inspect exact digits before arithmetic: decimal-context rounding
             # must not turn a tiny fractional-cent error into a passing price.
             digits, exponent = total.as_tuple().digits, total.as_tuple().exponent
-            if exponent < -2 and any(digits[max(0, len(digits) + exponent + 2):]):
+            if exponent < -2 and any(digits[max(0, len(digits) + exponent + 2) :]):
                 violations.append("fractional_cent_total")
             else:
                 observed = int(total * 100)

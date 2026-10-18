@@ -3,6 +3,7 @@
 This is exhaustive intervention testing in a disposable simulator, not a model
 prediction or a proof that a plan is safe in a production environment.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -13,19 +14,30 @@ from pathlib import Path
 from .lab import Lab, LabSnapshot
 from .models import Action
 
-
 EXECUTABLE_ACTIONS = tuple(action for action in Action if action != Action.none)
 
 
-def _experiment(snapshot: LabSnapshot, directory: Path, plan_id: str,
-                actions: tuple[Action, ...], probe_count: int) -> dict:
+def _experiment(
+    snapshot: LabSnapshot,
+    directory: Path,
+    plan_id: str,
+    actions: tuple[Action, ...],
+    probe_count: int,
+) -> dict:
     started = time.perf_counter()
     clone = Lab.from_snapshot(snapshot, directory)
     try:
-        verification = (clone.apply_plan(actions, probe_count=probe_count)["verification"]
-            if actions else clone.probe(probe_count))
-        return {"id": plan_id, "actions": [action.value for action in actions],
-            "verification": verification, "elapsed_ms": round((time.perf_counter() - started) * 1000, 2)}
+        verification = (
+            clone.apply_plan(actions, probe_count=probe_count)["verification"]
+            if actions
+            else clone.probe(probe_count)
+        )
+        return {
+            "id": plan_id,
+            "actions": [action.value for action in actions],
+            "verification": verification,
+            "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
+        }
     finally:
         clone.close()
 
@@ -38,9 +50,17 @@ def run_rehearsal(lab: Lab, max_actions: int = 2, probe_count: int = 3) -> dict:
     deterministic ordering breaks equal-size
     ties. Neither scenario IDs nor expected fault labels enter the search.
     """
-    if not isinstance(max_actions, int) or isinstance(max_actions, bool) or max_actions not in (1, 2):
+    if (
+        not isinstance(max_actions, int)
+        or isinstance(max_actions, bool)
+        or max_actions not in (1, 2)
+    ):
         raise ValueError("Rehearsal supports one or two actions per plan")
-    if not isinstance(probe_count, int) or isinstance(probe_count, bool) or not 1 <= probe_count <= 20:
+    if (
+        not isinstance(probe_count, int)
+        or isinstance(probe_count, bool)
+        or not 1 <= probe_count <= 20
+    ):
         raise ValueError("Probe count must be between 1 and 20")
     started = time.perf_counter()
     snapshot = lab.snapshot()
@@ -50,15 +70,28 @@ def run_rehearsal(lab: Lab, max_actions: int = 2, probe_count: int = 3) -> dict:
         control = _experiment(snapshot, directory / "control", "control", (), probe_count)
         if snapshot.telemetry_available:
             plans = itertools.chain.from_iterable(
-                itertools.combinations(EXECUTABLE_ACTIONS, size) for size in range(1, max_actions + 1))
+                itertools.combinations(EXECUTABLE_ACTIONS, size)
+                for size in range(1, max_actions + 1)
+            )
             for index, actions in enumerate(plans, start=1):
                 plan_id = f"plan-{index:02d}"
-                experiments.append(_experiment(snapshot, directory / plan_id, plan_id, actions, probe_count))
+                experiments.append(
+                    _experiment(snapshot, directory / plan_id, plan_id, actions, probe_count)
+                )
     successes = [trial for trial in experiments if trial["verification"]["all_healthy"]]
     control_healthy = control["verification"]["all_healthy"]
-    recommended = successes[0] if successes and not control_healthy and snapshot.telemetry_available else None
-    abstention = ("missing_telemetry" if not snapshot.telemetry_available else
-        "control_healthy" if control_healthy else "no_successful_plan" if recommended is None else None)
+    recommended = (
+        successes[0] if successes and not control_healthy and snapshot.telemetry_available else None
+    )
+    abstention = (
+        "missing_telemetry"
+        if not snapshot.telemetry_available
+        else "control_healthy"
+        if control_healthy
+        else "no_successful_plan"
+        if recommended is None
+        else None
+    )
     return {
         "elapsed_ms": round((time.perf_counter() - started) * 1000, 2),
         "source_fingerprint": snapshot.fingerprint(),
@@ -67,10 +100,14 @@ def run_rehearsal(lab: Lab, max_actions: int = 2, probe_count: int = 3) -> dict:
         "control": control,
         "experiments": experiments,
         "recommended_plan_id": recommended["id"] if recommended else None,
-        "summary": {"tested_plans": len(experiments), "successful_plans": len(successes),
+        "summary": {
+            "tested_plans": len(experiments),
+            "successful_plans": len(successes),
             "minimal_action_count": len(recommended["actions"]) if recommended else None,
-            "control_healthy": control_healthy, "telemetry_available": snapshot.telemetry_available,
-            "abstention_reason": abstention},
+            "control_healthy": control_healthy,
+            "telemetry_available": snapshot.telemetry_available,
+            "abstention_reason": abstention,
+        },
         "limitations": [
             "Tests a snapshot of a disposable HTTP/SQLite lab; it does not simulate a production fleet.",
             "Success requires HTTP 200 and the declared checkout contract for every sampled response; untested business rules and long-term reliability are not established.",

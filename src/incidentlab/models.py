@@ -75,7 +75,8 @@ class InvestigateRequest(StrictModel):
     mode: Literal["baseline", "mistral", "prompt", "retrieval"] = "baseline"
     question: str = Field(
         default="Investigate checkout health. Identify the cause of any failure and propose an evidence-backed fix.",
-        min_length=5, max_length=2000,
+        min_length=5,
+        max_length=2000,
     )
 
 
@@ -98,4 +99,3 @@ class RehearseRequest(StrictModel):
 class PromoteRequest(StrictModel):
     rehearsal_id: str = Field(pattern=r"^[a-f0-9]{32}$")
     plan_id: str = Field(min_length=1, max_length=64)
-
