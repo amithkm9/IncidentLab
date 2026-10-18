@@ -31,6 +31,7 @@ semantic or live-model performance. New full runs write to ignored `artifacts/`.
 
 - [Development guide](development/README.md): setup, troubleshooting, packaging,
   and tooling details. [Contribution practices](../CONTRIBUTING.md).
+- [Completed codebase/security audit](development/codebase-audit.md): fixes, checks, and cloud scan limits.
 - [Implementation work plan](development/implementation-plan.md) and [current status](../STATUS.md).
 - [CV claims with evidence](career/cv.md) and [Mistral FDE case study](career/mistral-fde.md).
 

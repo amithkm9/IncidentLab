@@ -61,6 +61,12 @@ Credentials are not part of tracked source or benchmark summaries.
 
 ## Validation
 
+[Hosted CI for the reviewed implementation](https://github.com/amithkm9/IncidentLab/actions/runs/39114644943)
+passed on `bc8fe51`: Docker/frontend builds, 345 backend tests, 47 frontend tests,
+Python quality checks, and all four offline evaluation smoke runs. The complete
+log contained zero warning lines. The subsequent audit-closure commit changes
+only documentation.
+
 The current Docker suite passed **345 tests in 44.36 seconds**, with warnings
 promoted to errors. Coverage includes real HTTP flows, contracts, proof omissions,
 incomplete measurements, stale authority, export integrity, promotion guards,

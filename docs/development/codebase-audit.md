@@ -12,7 +12,7 @@ their evidence is recorded. The prior migration checklist remains historical.
 5. [x] Make the README a public entry point with navigation, diagrams, setup, workflow, results, structure, and security boundaries.
 6. [x] Use the requested security extension where available; review trust boundaries and dependencies locally; fix and test confirmed findings.
 7. [x] Validate local builds, tests, packaging, documentation references, and security checks.
-8. [ ] Push reviewed commits and verify hosted CI.
+8. [x] Push reviewed commits and verify hosted CI.
 
 ## Findings and evidence
 
@@ -34,7 +34,7 @@ their evidence is recorded. The prior migration checklist remains historical.
   This is a point-in-time advisory check, not proof that dependencies are secure.
 - Codex Security Cloud was opened and availability checked. No Cloud environment
   is configured and the interactive app is unavailable in this session. No cloud
-  scan ran and no cloud findings are claimed. Local security work continues.
+  scan ran and no cloud findings are claimed. The local review is recorded below.
 - Bandit: three URL-opening review flags and one deterministic-randomness flag.
   URLs are produced by the disposable lab or its internal configuration; API and
   model tools cannot supply arbitrary endpoints. Seeded randomness chooses test
@@ -43,7 +43,7 @@ their evidence is recorded. The prior migration checklist remains historical.
   environment-setup side effects; these are not dead code. Ruff found no unused
   production imports. The TypeScript compiler API found zero unused runtime
   exports/files and zero runtime import cycles across 25 modules. Used type
-  declarations and pytest fixtures were retained. Local integration passed; hosted CI is pending.
+  declarations and pytest fixtures were retained. Local and hosted integration passed.
 
 The exact warning reported by the user remains unspecified. Browser/editor
 warnings beyond the reproduced build output are not assumed to be the same issue.
@@ -101,5 +101,12 @@ no configured environment, so its result must not be presented as a completed sc
   are unchanged; an exact-key scan found no credential in publishable source,
   frontend output, wheel, or source archive.
 
-The exact warning originally seen by the user was not supplied; the Docker/pip
-warning above is the one reproduced and fixed during this review.
+## Publication and hosted validation
+
+The implementation and public documentation were pushed to `main` in four
+focused commits ending at `bc8fe51`. [GitHub Actions run 39114644943](https://github.com/amithkm9/IncidentLab/actions/runs/39114644943)
+passed the Docker build, **345 backend tests**, **47 frontend tests**, Ruff checks,
+and all four offline smoke evaluations. Its full log contained zero warning
+lines. The following documentation-only commit records this completed checklist;
+application code, tests, dependencies, and build configuration are unchanged.
+
