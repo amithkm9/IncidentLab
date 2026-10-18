@@ -7,6 +7,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and run real-HTTP integration tests
         run: docker compose --profile test run --build --rm test
+      - name: Check Python code quality
+        run: |
+          docker compose --profile test run --rm test ruff check src tests
+          docker compose --profile test run --rm test ruff format --check src tests
       - name: Run baseline smoke evaluation
         run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile eval run --build --rm eval
       - name: Compare single fixes with isolated rehearsal
@@ -16,6 +20,7 @@ jobs:
       - name: Detect false recovery from HTTP-only verification
         run: LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --profile eval run --rm eval incidentlab-semantic-eval --split smoke --output artifacts/semantic-smoke.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: incidentlab-evaluations
           path: artifacts/*-smoke.json

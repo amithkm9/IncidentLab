@@ -15,19 +15,37 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3,<10"]
+dev = [
+  "httpx2>=2.13.1,<3",
+  "pytest>=8.3,<10",
+  "ruff>=0.14,<1",
+]
 
 [project.scripts]
 incidentlab = "incidentlab.cli:main"
-incidentlab-eval = "incidentlab.evaluate:main"
-incidentlab-rehearsal-eval = "incidentlab.evaluate_rehearsal:main"
-incidentlab-adaptive-eval = "incidentlab.evaluate_adaptive:main"
-incidentlab-semantic-eval = "incidentlab.evaluate_semantic:main"
+incidentlab-eval = "incidentlab.evaluation.baseline:main"
+incidentlab-rehearsal-eval = "incidentlab.evaluation.rehearsal:main"
+incidentlab-adaptive-eval = "incidentlab.evaluation.adaptive:main"
+incidentlab-semantic-eval = "incidentlab.evaluation.semantic:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/incidentlab"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"frontend/dist" = "incidentlab/web"
+
+[tool.hatch.build.targets.sdist.force-include]
+"frontend/dist" = "frontend/dist"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+filterwarnings = ["error"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
 

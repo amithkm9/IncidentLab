@@ -1,9 +1,17 @@
+FROM node:24-bookworm-slim AS frontend
+WORKDIR /web
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend ./
+RUN npm run check && npm run build
+
 FROM python:3.11-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 INCIDENTLAB_DATA_DIR=/app/runtime
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN pip install --no-cache-dir uv==0.9.5 && uv sync --frozen --no-dev --no-install-project
 COPY src ./src
+COPY --from=frontend /web/dist ./frontend/dist
 RUN uv sync --frozen --no-dev --no-editable
 ENV PATH="/app/.venv/bin:$PATH"
 RUN useradd --create-home lab && mkdir -p /app/runtime /app/artifacts && chown -R lab:lab /app
