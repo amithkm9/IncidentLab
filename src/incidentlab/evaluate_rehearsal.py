@@ -187,7 +187,7 @@ def evaluate(split: str = "smoke") -> dict:
             "The comparator performs one deterministic diagnosis and one action; it does not retry or receive the rehearsal's larger experiment budget.",
             "Repeated seeds exercise the same mechanisms; they are regression cases, not independent incidents or a held-out generalization study.",
             "Rehearsal clones this purpose-built HTTP/SQLite application; production service cloning and production-safe changes are not implemented.",
-            "Health means a small batch of HTTP 200 checkout responses; long-term reliability, semantic correctness, and nonfunctional regressions are not established.",
+            "Health means sampled HTTP 200 checkout responses passing the declared checkout contract; unspecified business rules, long-term reliability, and nonfunctional regressions are not established.",
             "Telemetry-gap cases intentionally require no recommendation, even though a hidden dependency fault exists.",
             "Live request timings vary; benchmark throughput and incident-resolution time are not production performance claims.",
         ],

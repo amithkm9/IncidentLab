@@ -117,7 +117,7 @@ def run_ordered_rehearsal(lab: Lab, max_experiments: int = 4, max_actions: int =
         "provider_usage": {"model": None, "input_tokens": 0, "output_tokens": 0, "api_calls": 0,
                            "estimated_cost_usd": 0, "cost_note": "Offline policy; no model API calls."},
         "limitations": ["Fixed-order prefix search over known allowlisted actions; it is not an iterative diagnosis baseline.",
-                        "A passing plan establishes only sampled HTTP 200 checkout responses in this disposable lab."],
+                        "A passing plan establishes sampled HTTP 200 responses and the declared checkout contract in this disposable lab."],
     }
 
 
@@ -305,7 +305,7 @@ def evaluate(strategies=("adaptive", "ordered"), seeds=(42,), max_experiments=4,
                 "Fixed-order prefix search is a simple comparator, not an equal-quality iterative incident investigator.",
                 "The deterministic adaptive policy is engineered for the known fault mechanisms; its results are not model reasoning scores.",
                 "Repeated seeds cover ten known scenarios, not independent production incidents or unseen-fault generalization.",
-                "Recovery means five fresh HTTP 200 responses in this purpose-built local lab; semantics, side effects, and production safety are not established.",
+                "Recovery requires five fresh HTTP 200 responses passing the declared checkout contract; unspecified business rules, side effects, and production safety are not established.",
                 "Recorded experiment requests exclude injection and diagnostic evidence traffic; final verification is counted separately.",
                 "Started candidate attempts may exceed completed measured experiments after execution failure; partial failed-request counts are unknown and are not invented.",
                 "Failed attempts remain in recovery/control denominators; unavailable provider usage may undercount billable usage.",

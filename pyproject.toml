@@ -22,6 +22,7 @@ incidentlab = "incidentlab.cli:main"
 incidentlab-eval = "incidentlab.evaluate:main"
 incidentlab-rehearsal-eval = "incidentlab.evaluate_rehearsal:main"
 incidentlab-adaptive-eval = "incidentlab.evaluate_adaptive:main"
+incidentlab-semantic-eval = "incidentlab.evaluate_semantic:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/incidentlab"]

@@ -6,5 +6,6 @@ __pycache__/
 .DS_Store
 runtime/
 artifacts/*.json
+artifacts/*.log
 !artifacts/.gitkeep
 
