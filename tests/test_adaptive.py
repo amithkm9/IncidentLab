@@ -1,5 +1,6 @@
 import copy
 import json
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -214,7 +215,8 @@ def test_provider_stateless_conversations_function_loop_and_usage(monkeypatch):
         body = json.loads(request.content)
         requests.append(body)
         assert str(request.url) == "https://api.mistral.ai/v1/conversations"
-        assert body["store"] is False and body["completion_args"]["tool_choice"] == "any"
+        # Conversations rejects Chat's `any` alias with HTTP 422. Verified live.
+        assert body["store"] is False and body["completion_args"]["tool_choice"] == "required"
         assert request.extensions["timeout"]["read"] <= 30
         context = json.loads(body["inputs"][-1].get("result") or body["inputs"][-1]["content"])
         return httpx.Response(200, json=provider_response({"actions": [Action.route.value],
@@ -307,3 +309,139 @@ def test_provider_credentials_are_required_without_fallback(monkeypatch):
     monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
     with pytest.raises(ValueError, match="no offline planner"):
         adaptive.MistralConversationPlanner()
+
+
+def mocked_experiment_lab(monkeypatch):
+    """Deterministic measurements for protocol tests, with no sockets/provider."""
+    snapshot = SimpleNamespace(telemetry_available=True, fingerprint=lambda: "test-fingerprint")
+
+    def measure(snapshot, directory, identifier, actions, probe_count):
+        has_route = Action.route.value in actions
+        passed = has_route and Action.rollback.value in actions
+        status = 200 if has_route else 502
+        data = {} if passed else ({"error_type": "price_mismatch"} if has_route
+                                  else {"error_type": "upstream_http_error", "upstream_status": 404})
+        return {"id": identifier, "actions": list(actions), "elapsed_ms": 1,
+            "verification": {"statuses": [status] * probe_count, "all_healthy": passed,
+                             "all_http_healthy": has_route, "semantic_passed": passed},
+            "evidence": [{"id": "observed-" + identifier, "source": "checkout",
+                          "summary": "Measured checkout response", "data": data}]}
+
+    monkeypatch.setattr(adaptive, "_measure", measure)
+    return SimpleNamespace(snapshot=lambda: snapshot)
+
+
+def test_provider_full_plan_context_explains_omitted_actions_without_overriding_them(monkeypatch):
+    lab = mocked_experiment_lab(monkeypatch)
+    contexts = []
+    chosen_plans = [[Action.route.value], [Action.rollback.value], [Action.route.value, Action.rollback.value]]
+
+    def respond(request):
+        body = json.loads(request.content)
+        entry = body["inputs"][-1]
+        context = json.loads(entry.get("result") or entry["content"])
+        contexts.append(context)
+        execution = context["experiment_execution"]
+        assert execution["actions_argument"] == "complete_plan"
+        assert execution["prior_trial_actions_are_inherited"] is False
+        assert execution["next_trial_starts_with_applied_actions"] == []
+        assert all(trial["base_state"] == "initial_snapshot" for trial in context["trial_history"])
+        if len(contexts) == 3:
+            history = context["trial_history"]
+            assert history[1]["full_plan"] == [Action.route.value]
+            assert history[1]["all_http_healthy"] is True and history[1]["semantic_passed"] is False
+            assert history[2]["full_plan"] == [Action.rollback.value]
+            assert history[2]["actions_removed_vs_previous_trial"] == [Action.route.value]
+            assert history[2]["actions_added_vs_previous_trial"] == [Action.rollback.value]
+            assert history[2]["http_statuses"] == [502] * 3
+        return httpx.Response(200, json=provider_response({"actions": chosen_plans[len(contexts) - 1],
+            "hypothesis": "Test this full action set on the original state.",
+            "evidence_ids": [context["latest_trial"]["evidence"][0]["id"]]}, call_id=f"call-{len(contexts)}"))
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        planner = adaptive.MistralConversationPlanner(client=client, api_key="test-key")
+        report = adaptive.run_adaptive_rehearsal(lab, strategy="mistral", planner=planner)
+    # The model deliberately omitted the first action in trial two. The runner
+    # must measure exactly that choice, not silently retain or add a repair.
+    assert [trial["actions"] for trial in report["experiments"]] == chosen_plans
+    assert report["experiments"][1]["verification"]["statuses"] == [502] * 3
+    assert report["recommended_plan_id"] == "plan-03"
+    assert report["provider_usage"]["api_calls"] == 3
+    assert len(contexts) == 3
+
+
+@pytest.mark.parametrize("status,retry_after,category,retry_seconds", [
+    (401, None, "authentication", None),
+    (403, "0", "authentication", 0),
+    (429, "12", "rate_limited", 12),
+    (429, "2.5", "rate_limited", 2.5),
+    (429, "7200", "rate_limited", 3600),
+    (429, "-1", "rate_limited", None),
+    (429, "1e999", "rate_limited", None),
+    (503, "Wed, 21 Oct 2026 07:28:00 GMT", "provider_unavailable", None),
+    (422, "SECRET-HEADER", "request_rejected", None),
+])
+def test_provider_http_failure_exposes_only_safe_bounded_metadata(status, retry_after, category, retry_seconds):
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        headers = {"x-private-diagnostic": "SECRET-HEADER"}
+        if retry_after is not None:
+            headers["Retry-After"] = retry_after
+        return httpx.Response(status, headers=headers, text="SECRET-PROVIDER-BODY")
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        planner = adaptive.MistralConversationPlanner(client=client, api_key="SECRET-TOKEN")
+        with pytest.raises(adaptive.ProviderFailure) as raised:
+            planner.propose(provider_context())
+        assert raised.value.metadata == {"category": category, "status_code": status,
+                                         "retry_after_seconds": retry_seconds}
+        exported = str(raised.value) + json.dumps(raised.value.metadata) + json.dumps(planner.usage())
+        assert "SECRET" not in exported
+        assert len(calls) == planner.usage()["api_calls"] == 1
+        assert planner.usage()["estimated_cost_usd"] is None
+
+
+@pytest.mark.parametrize("failure,category,status", [
+    ("timeout", "transport_timeout", None), ("connection", "transport_error", None),
+    ("malformed", "invalid_response", 200),
+])
+def test_provider_non_http_failure_metadata_is_safe(failure, category, status):
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        if failure == "timeout":
+            raise httpx.ReadTimeout("SECRET-TIMEOUT", request=request)
+        if failure == "connection":
+            raise httpx.ConnectError("SECRET-CONNECTION", request=request)
+        return httpx.Response(200, text="SECRET-MALFORMED-JSON")
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        planner = adaptive.MistralConversationPlanner(client=client, api_key="SECRET-TOKEN")
+        with pytest.raises(adaptive.ProviderFailure) as raised:
+            planner.propose(provider_context())
+        assert raised.value.metadata == {"category": category, "status_code": status, "retry_after_seconds": None}
+        assert "SECRET" not in str(raised.value) + json.dumps(raised.value.metadata)
+        assert len(calls) == planner.usage()["api_calls"] == 1
+
+
+def test_provider_failure_metadata_survives_report_without_authorizing_or_retrying(monkeypatch):
+    lab = mocked_experiment_lab(monkeypatch)
+    calls = []
+
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(429, headers={"retry-after": "15", "private": "SECRET-HEADER"}, text="SECRET-BODY")
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        planner = adaptive.MistralConversationPlanner(client=client, api_key="SECRET-TOKEN")
+        report = adaptive.run_adaptive_rehearsal(lab, strategy="mistral", planner=planner)
+    assert report["error"]["code"] == "provider_error"
+    assert report["error"]["provider_failure"] == {
+        "category": "rate_limited", "status_code": 429, "retry_after_seconds": 15}
+    assert report["recommended_plan_id"] is None and report["experiments"] == []
+    assert report["budget"]["used_experiments"] == 0
+    assert report["provider_usage"]["api_calls"] == len(calls) == 1
+    assert "SECRET" not in json.dumps(report)

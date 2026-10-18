@@ -176,9 +176,11 @@ class IncidentService:
 
     def _recovery_event(self, result: dict, label: str, identifiers: dict) -> dict:
         verified = result["verification"]["all_healthy"]
+        semantic = result["verification"].get("semantic_passed")
+        contract = "passed" if semantic is True else "failed" if semantic is False else "not recorded"
         return self._event("recovery_verified" if verified else "recovery_failed",
                            "Recovery verified" if verified else "Checkout still failing",
-                           f"{label}: fresh responses {result['verification']['statuses']}.",
+                           f"{label}: fresh responses {result['verification']['statuses']}; business contract {contract}.",
                            {**identifiers, "verification": result["verification"]})
 
     def read(self, investigation_id: str) -> dict:
@@ -237,9 +239,20 @@ class IncidentService:
             lines.extend(["## Isolated fix rehearsal", "",
                           f"Strategy: {markdown(report.get('strategy', 'exhaustive'))}.", "",
                           f"Tested {report['summary']['tested_plans']} plans; recommended `{report['recommended_plan_id'] or 'none'}`.", "",
-                          "| Plan | Actions | HTTP responses | Passed |", "| --- | --- | --- | --- |"])
+                          "| Plan | Actions | HTTP responses | Business contract | Passed |", "| --- | --- | --- | --- | --- |"])
             for plan in [report['control'], *report['experiments']]:
-                lines.append(f"| {markdown(plan['id'])} | {markdown(', '.join(plan['actions']) or 'No action')} | {markdown(plan['verification']['statuses'])} | {plan['verification']['all_healthy']} |")
+                verification = plan['verification']
+                semantic = verification.get('semantic_passed')
+                contract_result = 'Passed' if semantic is True else 'Failed' if semantic is False else 'Not recorded'
+                lines.append(f"| {markdown(plan['id'])} | {markdown(', '.join(plan['actions']) or 'No action')} | {markdown(verification['statuses'])} | {contract_result} | {verification['all_healthy']} |")
+            if report['control']['verification'].get('contract'):
+                contract = report['control']['verification']['contract']
+                lines.extend(["", f"Business contract: {markdown(contract.get('id'))}, version {markdown(contract.get('version'))}, SHA-256 {markdown(contract.get('sha256'))}.", "",
+                              "| Trial | SKU | Expected cents | Observed cents | Violations |", "| --- | --- | --- | --- | --- |"])
+                for plan in [report['control'], *report['experiments']]:
+                    for check in plan['verification'].get('semantic_checks', []):
+                        if check.get('evaluated') and not check.get('passed'):
+                            lines.append(f"| {markdown(plan['id'])} | {markdown(check.get('sku'))} | {markdown(check.get('expected_total_cents'))} | {markdown(check.get('observed_total_cents'))} | {markdown(check.get('violations'))} |")
             lines.extend(["", *[markdown(note) for note in report['limitations']], ""])
             if report.get('decision_trace'):
                 lines.extend(["### Experiment decisions", "",
@@ -262,6 +275,7 @@ class IncidentService:
             verification = remediation['verification']
             lines.extend([f"Method: {markdown(remediation.get('method', 'single_fix'))}.", "",
                           f"Fresh HTTP responses: {markdown(verification['statuses'])}.", "",
+                          f"Business contract passed: {markdown(verification.get('semantic_passed', 'not recorded'))}.", "",
                           "Recovery verified by this attempt." if verification['all_healthy'] else "This attempt did not restore checkout. See the latest episode outcome below.", ""])
         else:
             lines.extend(["No remediation was applied from this investigation.", ""])

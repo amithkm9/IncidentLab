@@ -34,7 +34,8 @@ def run_rehearsal(lab: Lab, max_actions: int = 2, probe_count: int = 3) -> dict:
     """Compare a no-change control with every allowed one/two-action plan.
 
     All trials start from the same snapshot. A plan is eligible only when every
-    fresh request returns HTTP 200; deterministic ordering breaks equal-size
+    fresh request returns HTTP 200 and passes the declared checkout contract;
+    deterministic ordering breaks equal-size
     ties. Neither scenario IDs nor expected fault labels enter the search.
     """
     if not isinstance(max_actions, int) or isinstance(max_actions, bool) or max_actions not in (1, 2):
@@ -72,7 +73,7 @@ def run_rehearsal(lab: Lab, max_actions: int = 2, probe_count: int = 3) -> dict:
             "abstention_reason": abstention},
         "limitations": [
             "Tests a snapshot of a disposable HTTP/SQLite lab; it does not simulate a production fleet.",
-            "Success means all sampled checkout requests returned HTTP 200; it does not establish long-term reliability or semantic correctness.",
+            "Success requires HTTP 200 and the declared checkout contract for every sampled response; untested business rules and long-term reliability are not established.",
             "Search is exhaustive only over the five allowlisted actions and the configured one/two-action budget.",
             "Plans are ranked by fewest actions, with a fixed tie-break order; latency is measured but not used as a safety or cost score.",
             "A healthy control or unavailable diagnostic telemetry prevents recommending a change.",
