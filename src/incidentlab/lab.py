@@ -22,6 +22,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from .contracts import CHECKOUT_CONTRACT, CheckoutContract, validate_checkout_response
 from .models import Action, Cause, Evidence
 
 
@@ -50,6 +51,8 @@ SCENARIOS = (
     Scenario("route_and_release", "Route drift masks a pricing regression", "An invalid inventory route hides a second failure in checkout pricing.", Cause.configuration, Action.route, (Action.route, Action.rollback)),
     Scenario("database_and_inventory", "Catalog failure masks an inventory outage", "The catalog path fails before checkout can reach an unavailable inventory service.", Cause.database, Action.database, (Action.database, Action.dependency)),
     Scenario("timeout_and_release", "A timeout masks a pricing regression", "An inventory deadline expires before checkout reaches a broken pricing release.", Cause.timeout, Action.timeout, (Action.timeout, Action.rollback)),
+    Scenario("silent_price_drift", "Successful HTTP, incorrect checkout price", "A deployed pricing regression returns HTTP 200 while charging the wrong total.", Cause.regression, Action.rollback, (Action.rollback,)),
+    Scenario("route_and_price_drift", "Route repair reveals silent price drift", "A missing inventory route masks incorrect checkout totals that still return HTTP 200.", Cause.configuration, Action.route, (Action.route, Action.rollback)),
 )
 SCENARIO_BY_ID = {s.id: s for s in SCENARIOS}
 
@@ -68,6 +71,7 @@ class LabSnapshot:
     inventory_delay: float
     telemetry_available: bool
     seed: int
+    contract: CheckoutContract = CHECKOUT_CONTRACT
 
     def fingerprint(self) -> str:
         config = {**self.config, "inventory_url": self.inventory_target, "catalog_path": self.catalog_target}
@@ -75,7 +79,8 @@ class LabSnapshot:
             "configured_catalog": (hashlib.sha256(self.configured_catalog_bytes).hexdigest()
                 if self.configured_catalog_bytes is not None else None),
             "inventory_ready": self.inventory_ready, "inventory_delay": self.inventory_delay,
-            "telemetry_available": self.telemetry_available, "seed": self.seed}
+            "telemetry_available": self.telemetry_available, "seed": self.seed,
+            "contract": self.contract.metadata()}
         return hashlib.sha256(json.dumps(state, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -91,6 +96,8 @@ class Lab:
         self.logs: list[Evidence] = []
         self.latencies: list[float] = []
         self.responses: list[int] = []
+        self.semantic_checks: list[dict] = []
+        self.contract = CHECKOUT_CONTRACT
         self.changes: list[Evidence] = []
         self.episode_id = uuid.uuid4().hex[:10]
         self.window = 1
@@ -168,6 +175,7 @@ class Lab:
                 inventory_delay=self.inventory_delay,
                 telemetry_available=self.telemetry_available,
                 seed=self.seed,
+                contract=self.contract,
             )
 
     @classmethod
@@ -192,6 +200,7 @@ class Lab:
                 clone.inventory_delay = snapshot.inventory_delay
                 clone.telemetry_available = snapshot.telemetry_available
                 clone.seed = snapshot.seed
+                clone.contract = snapshot.contract
                 clone.scenario_id = "snapshot"
             return clone
         except Exception:
@@ -277,7 +286,7 @@ class Lab:
                     lab._send(self, 404, {"error": "not_found"})
                     return
                 with lab.lock:
-                    config, episode = copy.deepcopy(lab.config), lab.observation_id
+                    config, episode, contract = copy.deepcopy(lab.config), lab.observation_id, lab.contract
                 request_id = uuid.uuid4().hex[:8]
                 started = time.perf_counter()
                 status, payload = 200, {}
@@ -292,6 +301,8 @@ class Lab:
                         json.load(response)
                     discount = None if config["release"] == "checkout-1.1" else 1.0
                     total = round(row[0] * discount, 2)
+                    if config["release"] == "checkout-1.2":
+                        total = round(total + 1.0, 2)
                     payload = {"total": total, "sku": sku, "request_id": request_id}
                     lab._log(episode, "checkout", "Checkout completed", level="info", request_id=request_id, status=200)
                 except urllib.error.HTTPError as exc:
@@ -311,10 +322,18 @@ class Lab:
                     lab._log(episode, "checkout", "Checkout pricing failed", level="error", request_id=request_id,
                         error_type=type(exc).__name__, detail=str(exc), release=config["release"])
                 elapsed = round((time.perf_counter() - started) * 1000, 2)
+                check = validate_checkout_response(json.dumps(payload), status, sku, contract)
                 with lab.lock:
                     if episode == lab.observation_id:
                         lab.responses.append(status)
                         lab.latencies.append(elapsed)
+                        lab.semantic_checks.append(check)
+                        if status == 200 and not check["passed"]:
+                            error_type = ("price_mismatch" if "price_mismatch" in check["violations"]
+                                else "response_contract_violation")
+                            lab._log(episode, "checkout", "Checkout response violates the independent business contract",
+                                level="error", error_type=error_type, contract_id=contract.id,
+                                contract_version=contract.version, contract_sha256=contract.sha256, **check)
                 lab._send(self, status, payload)
 
         return Handler
@@ -327,11 +346,12 @@ class Lab:
             self.window = 1
             self.seed, self.scenario_id = seed, scenario_id
             self.logs, self.latencies, self.responses, self.changes = [], [], [], []
+            self.semantic_checks = []
             self.config = self._default_config()
             self.inventory_ready, self.inventory_delay = True, 0.0
             self.telemetry_available = scenario_id != "telemetry_gap"
             before = copy.deepcopy(self.config)
-            if scenario_id in {"wrong_route", "route_and_release"}:
+            if scenario_id in {"wrong_route", "route_and_release", "route_and_price_drift"}:
                 self.config["inventory_url"] = self.inventory_url + "/v2/stock"
             if scenario_id in {"inventory_down", "telemetry_gap", "database_and_inventory"}:
                 self.inventory_ready = False
@@ -342,6 +362,8 @@ class Lab:
                 self.config["catalog_path"] = str(self.directory / f"missing-{seed}.sqlite")
             if scenario_id in {"bad_release", "route_and_release", "timeout_and_release"}:
                 self.config["release"] = "checkout-1.1"
+            if scenario_id in {"silent_price_drift", "route_and_price_drift"}:
+                self.config["release"] = "checkout-1.2"
             changed = {key: {"before": before[key], "after": value} for key, value in self.config.items() if before[key] != value}
             if changed:
                 self.changes.append(Evidence(id=f"change-{self.episode_id}-01", source="deployments",
@@ -350,34 +372,49 @@ class Lab:
         return self.status()
 
     def probe(self, count: int = 4) -> dict:
-        if not 1 <= count <= 20:
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 20:
             raise ValueError("Probe count must be between 1 and 20")
-        rng = random.Random(self.seed)
+        with self.lock:
+            seed, contract = self.seed, self.contract
+        skus = list(contract.expected_totals_cents)
+        random.Random(seed).shuffle(skus)
         statuses: list[int] = []
         durations: list[float] = []
-        for _ in range(count):
-            sku = rng.choice(["notebook", "lamp", "mug"])
+        checks: list[dict] = []
+        for index in range(count):
+            sku = skus[index % len(skus)]
             started = time.perf_counter()
             try:
-                with urllib.request.urlopen(f"{self.checkout_url}/checkout?sku={sku}", timeout=2) as response:
-                    response.read()
-                    statuses.append(response.status)
+                query = urllib.parse.urlencode({"sku": sku})
+                with urllib.request.urlopen(f"{self.checkout_url}/checkout?{query}", timeout=2) as response:
+                    body, status = response.read(), response.status
             except urllib.error.HTTPError as exc:
-                exc.read()
-                statuses.append(exc.code)
+                body, status = exc.read(), exc.code
+            statuses.append(status)
+            checks.append(validate_checkout_response(body, status, sku, contract))
             durations.append(round((time.perf_counter() - started) * 1000, 2))
-        return {"requests": count, "statuses": statuses, "all_healthy": all(s == 200 for s in statuses),
+        http_healthy = all(status == 200 for status in statuses)
+        semantic_passed = all(check["passed"] for check in checks)
+        return {"requests": count, "statuses": statuses, "all_healthy": http_healthy and semantic_passed,
+                "all_http_healthy": http_healthy, "semantic_passed": semantic_passed,
+                "semantic_checks": checks, "contract": contract.metadata(),
                 "median_latency_ms": round(statistics.median(durations), 2)}
 
     def status(self) -> dict:
         with self.lock:
-            errors = sum(code >= 400 for code in self.responses)
+            http_errors = sum(code != 200 for code in self.responses)
+            semantic_failures = sum(check["http_status"] == 200 and not check["passed"] for check in self.semantic_checks)
+            errors = http_errors + semantic_failures
             return {"episode_id": self.episode_id, "window": self.window, "scenario_id": self.scenario_id, "seed": self.seed,
                 "requests": len(self.responses), "errors": errors,
+                "http_errors": http_errors, "semantic_failures": semantic_failures,
+                "semantic_checked_requests": sum(check["evaluated"] for check in self.semantic_checks),
+                "business_error_rate": round(semantic_failures / len(self.responses), 3) if self.responses else 0,
                 "error_rate": round(errors / len(self.responses), 3) if self.responses else 0,
                 "median_latency_ms": round(statistics.median(self.latencies), 2) if self.latencies else 0,
                 "telemetry_available": self.telemetry_available,
-                "recent_statuses": self.responses[-8:], "services": ["checkout", "inventory", "catalog"]}
+                "recent_statuses": self.responses[-8:], "recent_semantic_checks": copy.deepcopy(self.semantic_checks[-8:]),
+                "contract": self.contract.metadata(), "services": ["checkout", "inventory", "catalog"]}
 
     def _unavailable(self) -> list[Evidence]:
         return [Evidence(id=f"telemetry-{self.episode_id}", source="collector",
@@ -403,7 +440,9 @@ class Lab:
                 return self._unavailable()
             status = self.status()
             return [Evidence(id=f"metrics-{self.observation_id}-{status['requests']}", source="metrics", summary="Observed checkout request metrics",
-                data={key: status[key] for key in ["requests", "errors", "error_rate", "median_latency_ms", "recent_statuses"]})]
+                data={key: status[key] for key in ["requests", "errors", "error_rate", "http_errors", "semantic_failures",
+                    "semantic_checked_requests", "business_error_rate", "median_latency_ms", "recent_statuses",
+                    "recent_semantic_checks", "contract"]})]
 
     def get_service_health(self) -> list[Evidence]:
         if not self.telemetry_available:
@@ -447,5 +486,6 @@ class Lab:
             # In-flight requests from the previous window cannot contaminate it.
             self.window += 1
             self.logs, self.latencies, self.responses = [], [], []
+            self.semantic_checks = []
         result = self.probe(probe_count)
         return {"actions": [action.value for action in plan], "scope": "disposable local lab", "verification": result}
